@@ -8,6 +8,15 @@
 #   They define reusable values that can be referenced in rules and other
 #   data elements. Each data element is powered by an extension delegate.
 #
+#   The settings field varies across extension types:
+#     - Core custom code data elements store JavaScript in settings["source"]
+#     - Other extensions define their own settings structure
+#
+#   Use parsed_settings to access the full settings object as a Ruby Hash.
+#   This is the primary accessor for data element configuration — it covers
+#   all extension types uniformly, exactly as Adobe Launch displays settings
+#   in its own version comparison UI.
+#
 # @domain Resources
 # @see https://developer.adobe.com/experience-platform/documentation/tags/api/endpoints/data-elements/
 #
@@ -30,15 +39,19 @@ module ReactorSDK
       # @return [String, nil] Default value when the element returns nil
       attribute :default_value
 
-      # @return [String, nil] How long to cache the value — "none", "pageview",
-      #   "session", "visitor", or a number of seconds
+      # @return [String, nil] How long to cache the value
+      #   One of: "none", "pageview", "session", "visitor", or seconds as string
       attribute :storage_duration
 
-      # @return [String] Identifies the extension delegate that powers this element
+      # @return [String] Identifies the extension delegate powering this element
+      #   Format: "extension-package-name::data-element::element-name"
+      #   Example: "core::dataElements::custom-code"
       attribute :delegate_descriptor_id
 
-      # @return [Hash] Configuration settings specific to the delegate
-      attribute :settings, default: {}
+      # @return [String] Raw settings value exactly as returned by Adobe.
+      #   May be a JSON-encoded string or a plain Hash depending on the extension.
+      #   Use parsed_settings for reliable Hash access.
+      attribute :settings
 
       # @return [String] ISO8601 timestamp when the element was created
       attribute :created_at
@@ -50,10 +63,45 @@ module ReactorSDK
       attribute :published_at
 
       ##
+      # Returns the settings field parsed into a Ruby Hash.
+      #
+      # This is the primary accessor for data element configuration. It handles
+      # all extension types uniformly:
+      #   - Core custom code elements storing JavaScript as JSON-encoded string
+      #   - Any third-party extension settings structure
+      #
+      # The app can render this as formatted JSON for display and diffing —
+      # exactly as Adobe Launch does in its own version comparison UI.
+      #
+      # Behaviour by input type:
+      #   - JSON-encoded string → parsed into Hash
+      #   - Already a Hash     → returned as-is
+      #   - nil or blank       → returns empty Hash
+      #   - Unparseable string → returns empty Hash, raw value still on settings
+      #
+      # The raw settings value is always preserved on the settings attribute
+      # unchanged — this method never modifies the underlying data.
+      #
+      # @return [Hash] Parsed settings or empty hash if nil, blank, or unparseable
+      #
+      def parsed_settings
+        raw = @attributes["settings"]
+        return {} if raw.nil? || raw == ""
+        return raw if raw.is_a?(Hash)
+
+        JSON.parse(raw)
+      rescue JSON::ParserError
+        {}
+      end
+
+      ##
       # @return [String] Human-readable representation
       #
       def inspect
-        "#<ReactorSDK::Resources::DataElement id=#{id.inspect} name=#{name.inspect}>"
+        "#<ReactorSDK::Resources::DataElement " \
+          "id=#{id.inspect} " \
+          "name=#{name.inspect} " \
+          "delegate=#{delegate_descriptor_id.inspect}>"
       end
     end
   end
