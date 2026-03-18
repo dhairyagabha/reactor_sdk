@@ -38,7 +38,7 @@ module ReactorSDK
       #
       def find(rule_component_id)
         response = @connection.get("/rule_components/#{rule_component_id}")
-        @parser.parse(response["data"], Resources::RuleComponent)
+        @parser.parse(response['data'], Resources::RuleComponent)
       end
     end
   end

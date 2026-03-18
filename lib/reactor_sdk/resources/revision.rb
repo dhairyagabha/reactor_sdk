@@ -53,7 +53,7 @@ module ReactorSDK
       def entity_snapshot
         return {} if @included_entity.nil?
 
-        @included_entity.fetch("attributes", {})
+        @included_entity.fetch('attributes', {})
       end
 
       ##
@@ -108,7 +108,7 @@ module ReactorSDK
       # @return [String] Human-readable representation
       #
       def inspect
-        "#<ReactorSDK::Resources::Revision " \
+        '#<ReactorSDK::Resources::Revision ' \
           "id=#{id.inspect} " \
           "activity_type=#{activity_type.inspect} " \
           "entity_id=#{entity_id.inspect} " \
@@ -127,11 +127,11 @@ module ReactorSDK
       def extract_entity_identity(relationships)
         return unless relationships.is_a?(Hash)
 
-        entity_data = relationships.dig("entity", "data")
+        entity_data = relationships.dig('entity', 'data')
         return unless entity_data.is_a?(Hash)
 
-        @entity_id   = entity_data["id"]
-        @entity_type = entity_data["type"]
+        @entity_id   = entity_data['id']
+        @entity_type = entity_data['type']
       end
     end
   end

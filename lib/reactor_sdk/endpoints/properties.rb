@@ -38,7 +38,7 @@ module ReactorSDK
       #
       def find(property_id)
         response = @connection.get("/properties/#{property_id}")
-        @parser.parse(response["data"], Resources::Property)
+        @parser.parse(response['data'], Resources::Property)
       end
 
       ##
@@ -53,11 +53,11 @@ module ReactorSDK
       #
       def create(company_id:, name:, platform:, domains: [])
         payload = build_payload(
-          "properties",
+          'properties',
           { name: name, platform: platform, domains: domains }
         )
         response = @connection.post("/companies/#{company_id}/properties", payload)
-        @parser.parse(response["data"], Resources::Property)
+        @parser.parse(response['data'], Resources::Property)
       end
 
       ##
@@ -69,9 +69,9 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the property does not exist
       #
       def update(property_id, attributes)
-        payload  = build_payload("properties", attributes, id: property_id)
+        payload  = build_payload('properties', attributes, id: property_id)
         response = @connection.patch("/properties/#{property_id}", payload)
-        @parser.parse(response["data"], Resources::Property)
+        @parser.parse(response['data'], Resources::Property)
       end
 
       ##

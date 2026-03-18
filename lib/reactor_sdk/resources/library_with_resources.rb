@@ -89,9 +89,9 @@ module ReactorSDK
         included_resources:  {}
       )
         super(id: id, type: type, attributes: attributes, meta: meta)
-        @rules         = build_resources(included_resources["rules"],         Resources::Rule)
-        @data_elements = build_resources(included_resources["data_elements"], Resources::DataElement)
-        @extensions    = build_resources(included_resources["extensions"],    Resources::Extension)
+        @rules         = build_resources(included_resources['rules'],         Resources::Rule)
+        @data_elements = build_resources(included_resources['data_elements'], Resources::DataElement)
+        @extensions    = build_resources(included_resources['extensions'],    Resources::Extension)
       end
 
       ##
@@ -100,7 +100,7 @@ module ReactorSDK
       # @return [Boolean]
       #
       def buildable?
-        state == "development"
+        state == 'development'
       end
 
       ##
@@ -109,7 +109,7 @@ module ReactorSDK
       # @return [Boolean]
       #
       def published?
-        state == "published"
+        state == 'published'
       end
 
       ##
@@ -142,7 +142,7 @@ module ReactorSDK
       # @return [String] Human-readable representation
       #
       def inspect
-        "#<ReactorSDK::Resources::LibraryWithResources " \
+        '#<ReactorSDK::Resources::LibraryWithResources ' \
           "id=#{id.inspect} " \
           "name=#{name.inspect} " \
           "state=#{state.inspect} " \
@@ -164,10 +164,10 @@ module ReactorSDK
       def build_resources(raw_resources, resource_class)
         Array(raw_resources).map do |raw|
           resource = resource_class.new(
-            id: raw.fetch("id"),
-            type: raw.fetch("type"),
-            attributes: raw.fetch("attributes", {}),
-            meta: raw.fetch("meta", {})
+            id: raw.fetch('id'),
+            type: raw.fetch('type'),
+            attributes: raw.fetch('attributes', {}),
+            meta: raw.fetch('meta', {})
           )
           resource.instance_variable_set(
             :@revision_id,
@@ -186,7 +186,7 @@ module ReactorSDK
       # @return [String, nil] Revision ID or nil if not present
       #
       def extract_revision_id(raw)
-        raw.dig("relationships", "latest_revision", "data", "id")
+        raw.dig('relationships', 'latest_revision', 'data', 'id')
       end
     end
   end

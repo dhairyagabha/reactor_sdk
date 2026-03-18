@@ -38,7 +38,7 @@ module ReactorSDK
       #
       def find(extension_id)
         response = @connection.get("/extensions/#{extension_id}")
-        @parser.parse(response["data"], Resources::Extension)
+        @parser.parse(response['data'], Resources::Extension)
       end
     end
   end

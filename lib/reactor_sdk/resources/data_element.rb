@@ -85,8 +85,8 @@ module ReactorSDK
       # @return [Hash] Parsed settings or empty hash if nil, blank, or unparseable
       #
       def parsed_settings
-        raw = @attributes["settings"]
-        return {} if raw.nil? || raw == ""
+        raw = @attributes['settings']
+        return {} if raw.nil? || raw == ''
         return raw if raw.is_a?(Hash)
 
         JSON.parse(raw)
@@ -98,7 +98,7 @@ module ReactorSDK
       # @return [String] Human-readable representation
       #
       def inspect
-        "#<ReactorSDK::Resources::DataElement " \
+        '#<ReactorSDK::Resources::DataElement ' \
           "id=#{id.inspect} " \
           "name=#{name.inspect} " \
           "delegate=#{delegate_descriptor_id.inspect}>"

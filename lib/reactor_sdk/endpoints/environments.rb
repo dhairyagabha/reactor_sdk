@@ -39,7 +39,7 @@ module ReactorSDK
       #
       def find(environment_id)
         response = @connection.get("/environments/#{environment_id}")
-        @parser.parse(response["data"], Resources::Environment)
+        @parser.parse(response['data'], Resources::Environment)
       end
 
       ##
@@ -52,10 +52,10 @@ module ReactorSDK
       # @return [ReactorSDK::Resources::Environment] The newly created environment
       # @raise [ReactorSDK::UnprocessableEntityError] if attributes are invalid
       #
-      def create(property_id:, name:, stage: "development")
-        payload  = build_payload("environments", { name: name, stage: stage })
+      def create(property_id:, name:, stage: 'development')
+        payload  = build_payload('environments', { name: name, stage: stage })
         response = @connection.post("/properties/#{property_id}/environments", payload)
-        @parser.parse(response["data"], Resources::Environment)
+        @parser.parse(response['data'], Resources::Environment)
       end
 
       ##

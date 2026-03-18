@@ -44,7 +44,7 @@ module ReactorSDK
       # @return [Boolean]
       #
       def buildable?
-        state == "development"
+        state == 'development'
       end
 
       ##
@@ -53,7 +53,7 @@ module ReactorSDK
       # @return [Boolean]
       #
       def published?
-        state == "published"
+        state == 'published'
       end
 
       ##

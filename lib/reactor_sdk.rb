@@ -33,62 +33,62 @@
 #
 
 # ── External gems ────────────────────────────────────────────────
-require "faraday"
-require "faraday/retry"
-require "faraday/net_http"
-require "json"
-require "uri"
+require 'faraday'
+require 'faraday/retry'
+require 'faraday/net_http'
+require 'json'
+require 'uri'
 
 # ── Version ──────────────────────────────────────────────────────
-require_relative "reactor_sdk/version"
+require_relative 'reactor_sdk/version'
 
 # ── Errors ───────────────────────────────────────────────────────
 # Loaded first — no internal dependencies.
 # All other files may raise these error classes.
-require_relative "reactor_sdk/error"
+require_relative 'reactor_sdk/error'
 
 # ── Infrastructure ───────────────────────────────────────────────
 # Loaded in dependency order — each file depends only on those above it.
-require_relative "reactor_sdk/configuration"
-require_relative "reactor_sdk/authentication"
-require_relative "reactor_sdk/rate_limiter"
-require_relative "reactor_sdk/connection"
-require_relative "reactor_sdk/paginator"
-require_relative "reactor_sdk/response_parser"
+require_relative 'reactor_sdk/configuration'
+require_relative 'reactor_sdk/authentication'
+require_relative 'reactor_sdk/rate_limiter'
+require_relative 'reactor_sdk/connection'
+require_relative 'reactor_sdk/paginator'
+require_relative 'reactor_sdk/response_parser'
 
 # ── Resources ────────────────────────────────────────────────────
 # Plain data objects. No dependencies on endpoints.
 # base_resource must be loaded before all other resource files.
-require_relative "reactor_sdk/resources/base_resource"
-require_relative "reactor_sdk/resources/company"
-require_relative "reactor_sdk/resources/property"
-require_relative "reactor_sdk/resources/environment"
-require_relative "reactor_sdk/resources/rule"
-require_relative "reactor_sdk/resources/rule_component"
-require_relative "reactor_sdk/resources/data_element"
-require_relative "reactor_sdk/resources/extension"
-require_relative "reactor_sdk/resources/library"
-require_relative "reactor_sdk/resources/library_with_resources"
-require_relative "reactor_sdk/resources/build"
-require_relative "reactor_sdk/resources/revision"
-require_relative "reactor_sdk/resources/audit_event"
+require_relative 'reactor_sdk/resources/base_resource'
+require_relative 'reactor_sdk/resources/company'
+require_relative 'reactor_sdk/resources/property'
+require_relative 'reactor_sdk/resources/environment'
+require_relative 'reactor_sdk/resources/rule'
+require_relative 'reactor_sdk/resources/rule_component'
+require_relative 'reactor_sdk/resources/data_element'
+require_relative 'reactor_sdk/resources/extension'
+require_relative 'reactor_sdk/resources/library'
+require_relative 'reactor_sdk/resources/library_with_resources'
+require_relative 'reactor_sdk/resources/build'
+require_relative 'reactor_sdk/resources/revision'
+require_relative 'reactor_sdk/resources/audit_event'
 
 # ── Endpoints ────────────────────────────────────────────────────
 # Depend on resources and infrastructure.
 # base_endpoint must be loaded before all other endpoint files.
-require_relative "reactor_sdk/endpoints/base_endpoint"
-require_relative "reactor_sdk/endpoints/companies"
-require_relative "reactor_sdk/endpoints/properties"
-require_relative "reactor_sdk/endpoints/environments"
-require_relative "reactor_sdk/endpoints/rules"
-require_relative "reactor_sdk/endpoints/rule_components"
-require_relative "reactor_sdk/endpoints/data_elements"
-require_relative "reactor_sdk/endpoints/extensions"
-require_relative "reactor_sdk/endpoints/libraries"
-require_relative "reactor_sdk/endpoints/builds"
-require_relative "reactor_sdk/endpoints/revisions"
-require_relative "reactor_sdk/endpoints/audit_events"
+require_relative 'reactor_sdk/endpoints/base_endpoint'
+require_relative 'reactor_sdk/endpoints/companies'
+require_relative 'reactor_sdk/endpoints/properties'
+require_relative 'reactor_sdk/endpoints/environments'
+require_relative 'reactor_sdk/endpoints/rules'
+require_relative 'reactor_sdk/endpoints/rule_components'
+require_relative 'reactor_sdk/endpoints/data_elements'
+require_relative 'reactor_sdk/endpoints/extensions'
+require_relative 'reactor_sdk/endpoints/libraries'
+require_relative 'reactor_sdk/endpoints/builds'
+require_relative 'reactor_sdk/endpoints/revisions'
+require_relative 'reactor_sdk/endpoints/audit_events'
 
 # ── Client ───────────────────────────────────────────────────────
 # Public API entry point. Depends on everything above.
-require_relative "reactor_sdk/client"
+require_relative 'reactor_sdk/client'

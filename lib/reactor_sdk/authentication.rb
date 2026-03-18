@@ -25,7 +25,7 @@ module ReactorSDK
   class Authentication
     # Adobe IMS token endpoint — single global endpoint for all regions
     # Read by Configuration as its default value for ims_token_url
-    IMS_TOKEN_URL = "https://ims-na1.adobelogin.com/ims/token/v3"
+    IMS_TOKEN_URL = 'https://ims-na1.adobelogin.com/ims/token/v3'
 
     # Refresh the token this many seconds before actual expiry.
     # Prevents edge cases where a token expires between check and use.
@@ -33,11 +33,11 @@ module ReactorSDK
 
     # Required OAuth scopes for full Reactor API access
     REACTOR_SCOPE = [
-      "openid",
-      "AdobeID",
-      "read_organizations",
-      "additional_info.projectedProductContext"
-    ].join(",").freeze
+      'openid',
+      'AdobeID',
+      'read_organizations',
+      'additional_info.projectedProductContext'
+    ].join(',').freeze
 
     ##
     # @param config [ReactorSDK::Configuration] SDK configuration instance
@@ -89,7 +89,7 @@ module ReactorSDK
       unless response.success?
         raise AuthenticationError.new(
           "Adobe IMS token request failed (HTTP #{response.status}). " \
-          "Check your client_id and client_secret.",
+          'Check your client_id and client_secret.',
           status: response.status
         )
       end
@@ -109,7 +109,7 @@ module ReactorSDK
     #
     def token_request_params
       {
-        grant_type: "client_credentials",
+        grant_type: 'client_credentials',
         client_id: @config.client_id,
         client_secret: @config.client_secret,
         scope: REACTOR_SCOPE
@@ -125,11 +125,11 @@ module ReactorSDK
     #
     def parse_token_response(body)
       data          = JSON.parse(body)
-      @token        = data.fetch("access_token")
-      @token_expiry = Time.now.utc + data.fetch("expires_in").to_i
+      @token        = data.fetch('access_token')
+      @token_expiry = Time.now.utc + data.fetch('expires_in').to_i
     rescue JSON::ParserError, KeyError => e
       raise AuthenticationError.new(
-        "Could not parse Adobe IMS token response",
+        'Could not parse Adobe IMS token response',
         cause: e
       )
     end

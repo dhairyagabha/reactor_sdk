@@ -4,10 +4,10 @@
 # @file resources/audit_event.rb
 # @description Represents an Adobe Launch Audit Event resource.
 #
-#   Audit events are records of actions taken within Adobe Launch.
-#   They record who did what and when — covering creates, updates,
-#   deletes, publishes, and other significant actions on any resource
-#   within a property.
+#   Audit events record every significant action taken within Adobe Launch —
+#   creates, updates, deletes, publishes, and state transitions.
+#   LaunchGuard syncs these events into its own audit log to provide a
+#   complete cross-platform activity record.
 #
 # @domain Resources
 # @see https://developer.adobe.com/experience-platform/documentation/tags/api/endpoints/audit-events/
@@ -17,7 +17,6 @@ module ReactorSDK
   module Resources
     class AuditEvent < BaseResource
       # @return [String] The type of action that occurred
-      #   e.g. "created", "updated", "deleted", "published"
       attribute :type_of
 
       # @return [String] Human-readable name of the affected resource
@@ -36,7 +35,10 @@ module ReactorSDK
       # @return [String] Human-readable representation
       #
       def inspect
-        "#<ReactorSDK::Resources::AuditEvent id=#{id.inspect} type=#{type_of.inspect} entity=#{entity_display_name.inspect}>"
+        '#<ReactorSDK::Resources::AuditEvent ' \
+          "id=#{id.inspect} " \
+          "type=#{type_of.inspect} " \
+          "entity=#{entity_display_name.inspect}>"
       end
     end
   end

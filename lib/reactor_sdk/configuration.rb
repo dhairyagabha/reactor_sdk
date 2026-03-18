@@ -18,7 +18,7 @@
 module ReactorSDK
   class Configuration
     # Default Reactor API base URL
-    DEFAULT_BASE_URL = "https://reactor.adobe.io"
+    DEFAULT_BASE_URL = 'https://reactor.adobe.io'
 
     # Default HTTP timeout in seconds
     DEFAULT_TIMEOUT = 30

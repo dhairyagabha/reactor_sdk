@@ -48,7 +48,7 @@ module ReactorSDK
       #
       def find(revision_id)
         response = @connection.get("/revisions/#{revision_id}")
-        @parser.parse(response["data"], Resources::Revision, response: response)
+        @parser.parse(response['data'], Resources::Revision, response: response)
       end
 
       ##

@@ -72,8 +72,8 @@ module ReactorSDK
     # @param validation_errors [Array<Hash>] Adobe API validation error objects
     # @param opts              [Hash]        Passed through to ReactorSDK::Error
     #
-    def initialize(message, validation_errors: [], **opts)
-      super(message, **opts)
+    def initialize(message, validation_errors: [], **)
+      super(message, **)
       @validation_errors = validation_errors
     end
   end
@@ -91,8 +91,8 @@ module ReactorSDK
     # @param retry_after [Integer, nil] Seconds until rate limit resets
     # @param opts        [Hash]         Passed through to ReactorSDK::Error
     #
-    def initialize(message, retry_after: nil, **opts)
-      super(message, **opts)
+    def initialize(message, retry_after: nil, **)
+      super(message, **)
       @retry_after = retry_after
     end
   end

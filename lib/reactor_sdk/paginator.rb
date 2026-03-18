@@ -58,14 +58,14 @@ module ReactorSDK
 
       while next_url
         response = @connection.get(next_url)
-        data     = Array(response&.fetch("data", []))
+        data     = Array(response&.fetch('data', []))
 
         data.each do |record|
           yield record if block_given?
           records << record
         end
 
-        next_url = response&.dig("links", "next")
+        next_url = response&.dig('links', 'next')
       end
 
       records
@@ -82,7 +82,7 @@ module ReactorSDK
     # @return [String] Full path with query string
     #
     def build_initial_url(path, params)
-      query_params = { "page[size]" => DEFAULT_PAGE_SIZE }
+      query_params = { 'page[size]' => DEFAULT_PAGE_SIZE }
                      .merge(params.transform_keys(&:to_s))
 
       query_string = URI.encode_www_form(query_params)

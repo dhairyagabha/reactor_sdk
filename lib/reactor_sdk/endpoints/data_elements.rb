@@ -36,7 +36,7 @@ module ReactorSDK
       #
       def find(data_element_id)
         response = @connection.get("/data_elements/#{data_element_id}")
-        @parser.parse(response["data"], Resources::DataElement)
+        @parser.parse(response['data'], Resources::DataElement)
       end
 
       ##
@@ -52,7 +52,7 @@ module ReactorSDK
       #
       def create(property_id:, name:, delegate_descriptor_id:, settings: {}, enabled: true)
         payload = build_payload(
-          "data_elements",
+          'data_elements',
           {
             name: name,
             delegate_descriptor_id: delegate_descriptor_id,
@@ -61,7 +61,7 @@ module ReactorSDK
           }
         )
         response = @connection.post("/properties/#{property_id}/data_elements", payload)
-        @parser.parse(response["data"], Resources::DataElement)
+        @parser.parse(response['data'], Resources::DataElement)
       end
 
       ##
@@ -73,9 +73,9 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the data element does not exist
       #
       def update(data_element_id, attributes)
-        payload  = build_payload("data_elements", attributes, id: data_element_id)
+        payload  = build_payload('data_elements', attributes, id: data_element_id)
         response = @connection.patch("/data_elements/#{data_element_id}", payload)
-        @parser.parse(response["data"], Resources::DataElement)
+        @parser.parse(response['data'], Resources::DataElement)
       end
 
       ##

@@ -1,8 +1,90 @@
+# ReactorSDK RuboCop configuration
+#
+# Metrics cops are relaxed to accommodate:
+#   - Well-documented service classes with many methods (ClassLength)
+#   - RSpec describe/context blocks which are intentionally long (BlockLength)
+#   - Methods with full JSDoc comments that push line counts (MethodLength)
+#   - Keyword argument lists which are more readable when explicit (ParameterLists)
+#   - Case statements in error handling which have inherent complexity (AbcSize)
+#
+# Style/Documentation is disabled because all files use file-level @file
+# JSDoc blocks rather than inline class documentation comments.
+
 AllCops:
+  NewCops: enable
   TargetRubyVersion: 3.2
+  SuggestExtensions: false
+  Exclude:
+    - "vendor/**/*"
+    - "bin/**/*"
 
-Style/StringLiterals:
-  EnforcedStyle: double_quotes
+# ── Metrics ──────────────────────────────────────────────────────
 
-Style/StringLiteralsInInterpolation:
-  EnforcedStyle: double_quotes
+Metrics/ClassLength:
+  Max: 150
+  Exclude:
+    - "lib/reactor_sdk/connection.rb"
+    - "lib/reactor_sdk/endpoints/libraries.rb"
+
+Metrics/MethodLength:
+  Max: 20
+  Exclude:
+    - "spec/**/*"
+
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+    - "reactor_sdk.gemspec"
+
+Metrics/ParameterLists:
+  Max: 8
+  CountKeywordArgs: false
+
+Metrics/AbcSize:
+  Max: 35
+
+Metrics/CyclomaticComplexity:
+  Max: 12
+
+# ── Style ─────────────────────────────────────────────────────────
+
+# File-level @file JSDoc blocks are used instead of inline class docs
+Style/Documentation:
+  Enabled: false
+
+# Frozen string literals are enforced via the comment at the top of each file
+Style/FrozenStringLiteralComment:
+  Enabled: true
+  EnforcedStyle: always
+
+# ── Layout ────────────────────────────────────────────────────────
+
+Layout/LineLength:
+  Max: 120
+  Exclude:
+    - "spec/**/*"
+
+# ── Lint ──────────────────────────────────────────────────────────
+
+Lint/EmptyFile:
+  Enabled: true
+
+# ── RSpec ─────────────────────────────────────────────────────────
+
+plugins:
+  - rubocop-rspec
+
+RSpec/ExampleLength:
+  Enabled: false
+
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/NestedGroups:
+  Max: 5
+
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 12

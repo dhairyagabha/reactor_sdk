@@ -37,13 +37,13 @@ module ReactorSDK
     # @raise [KeyError]      if required JSON:API fields are missing
     #
     def parse(data, resource_class, response: nil)
-      raise ArgumentError, "data cannot be nil" if data.nil?
+      raise ArgumentError, 'data cannot be nil' if data.nil?
 
       base_args = {
-        id: data.fetch("id"),
-        type: data.fetch("type"),
-        attributes: data.fetch("attributes", {}),
-        meta: data.fetch("meta", {})
+        id: data.fetch('id'),
+        type: data.fetch('type'),
+        attributes: data.fetch('attributes', {}),
+        meta: data.fetch('meta', {})
       }
 
       base_args.merge!(extract_revision_extras(data, response)) if resource_class == Resources::Revision
@@ -78,7 +78,7 @@ module ReactorSDK
     # @return [Hash] Extra keyword args for Revision.new
     #
     def extract_revision_extras(data, response)
-      relationships   = data.fetch("relationships", nil)
+      relationships   = data.fetch('relationships', nil)
       included_entity = find_included_entity(data, response)
 
       {
@@ -98,15 +98,15 @@ module ReactorSDK
     def find_included_entity(data, response)
       return nil unless response.is_a?(Hash)
 
-      included = Array(response["included"])
+      included = Array(response['included'])
       return nil if included.empty?
 
-      entity_data = data.dig("relationships", "entity", "data")
+      entity_data = data.dig('relationships', 'entity', 'data')
       return nil unless entity_data.is_a?(Hash)
 
       included.find do |item|
-        item["id"] == entity_data["id"] &&
-          item["type"] == entity_data["type"]
+        item['id'] == entity_data['id'] &&
+          item['type'] == entity_data['type']
       end
     end
   end

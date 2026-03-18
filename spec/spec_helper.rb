@@ -19,13 +19,13 @@
 #     VCR_RECORD=all bundle exec rspec spec/path/to/spec.rb
 #
 
-require "reactor_sdk"
-require "vcr"
-require "webmock/rspec"
+require 'reactor_sdk'
+require 'vcr'
+require 'webmock/rspec'
 
 # ── VCR configuration ────────────────────────────────────────────
 VCR.configure do |config|
-  config.cassette_library_dir = "spec/vcr_cassettes"
+  config.cassette_library_dir = 'spec/vcr_cassettes'
   config.hook_into :webmock
   config.configure_rspec_metadata!
 
@@ -33,21 +33,21 @@ VCR.configure do |config|
   config.allow_http_connections_when_no_cassette = false
 
   # Scrub sensitive values from recorded cassettes before saving
-  config.filter_sensitive_data("<ADOBE_ACCESS_TOKEN>") do
-    ENV.fetch("ADOBE_ACCESS_TOKEN", "test_access_token")
+  config.filter_sensitive_data('<ADOBE_ACCESS_TOKEN>') do
+    ENV.fetch('ADOBE_ACCESS_TOKEN', 'test_access_token')
   end
-  config.filter_sensitive_data("<ADOBE_CLIENT_ID>") do
-    ENV.fetch("ADOBE_CLIENT_ID", "test_client_id")
+  config.filter_sensitive_data('<ADOBE_CLIENT_ID>') do
+    ENV.fetch('ADOBE_CLIENT_ID', 'test_client_id')
   end
-  config.filter_sensitive_data("<ADOBE_CLIENT_SECRET>") do
-    ENV.fetch("ADOBE_CLIENT_SECRET", "test_client_secret")
+  config.filter_sensitive_data('<ADOBE_CLIENT_SECRET>') do
+    ENV.fetch('ADOBE_CLIENT_SECRET', 'test_client_secret')
   end
-  config.filter_sensitive_data("<ADOBE_IMS_ORG_ID>") do
-    ENV.fetch("ADOBE_IMS_ORG_ID", "test_org_id")
+  config.filter_sensitive_data('<ADOBE_IMS_ORG_ID>') do
+    ENV.fetch('ADOBE_IMS_ORG_ID', 'test_org_id')
   end
 
   # Record mode — override with VCR_RECORD=all or VCR_RECORD=new
-  record_mode = ENV.fetch("VCR_RECORD", "none").to_sym
+  record_mode = ENV.fetch('VCR_RECORD', 'none').to_sym
   config.default_cassette_options = { record: record_mode }
 end
 
@@ -76,18 +76,18 @@ RSpec.configure do |config|
   # WebMock stubs the token endpoint to return a fake token.
   #
   def test_client
-    stub_request(:post, "http://localhost:9292/token")
+    stub_request(:post, 'http://localhost:9292/token')
       .to_return(
         status: 200,
-        body: { access_token: "test_token", expires_in: 86_400 }.to_json,
-        headers: { "Content-Type" => "application/json" }
+        body: { access_token: 'test_token', expires_in: 86_400 }.to_json,
+        headers: { 'Content-Type' => 'application/json' }
       )
 
     ReactorSDK::Client.new(
-      client_id: "test_client_id",
-      client_secret: "test_client_secret",
-      org_id: "test_org_id",
-      ims_token_url: "http://localhost:9292/token"
+      client_id: 'test_client_id',
+      client_secret: 'test_client_secret',
+      org_id: 'test_org_id',
+      ims_token_url: 'http://localhost:9292/token'
     )
   end
 
@@ -102,10 +102,10 @@ RSpec.configure do |config|
   #
   def jsonapi_response(type:, id:, attributes: {})
     {
-      "data" => {
-        "id" => id,
-        "type" => type,
-        "attributes" => attributes
+      'data' => {
+        'id' => id,
+        'type' => type,
+        'attributes' => attributes
       }
     }
   end
@@ -119,14 +119,14 @@ RSpec.configure do |config|
   #
   def jsonapi_list_response(type:, items:)
     {
-      "data" => items.map do |item|
+      'data' => items.map do |item|
         {
-          "id" => item[:id],
-          "type" => type,
-          "attributes" => item[:attributes]
+          'id' => item[:id],
+          'type' => type,
+          'attributes' => item[:attributes]
         }
       end,
-      "links" => { "next" => nil }
+      'links' => { 'next' => nil }
     }
   end
 end

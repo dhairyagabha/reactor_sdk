@@ -26,7 +26,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the property does not exist
       #
       def list_for_property(property_id, since: nil)
-        params  = since ? { "filter[created_at]" => "GT #{since}" } : {}
+        params  = since ? { 'filter[created_at]' => "GT #{since}" } : {}
         records = @paginator.all("/properties/#{property_id}/audit_events", params: params)
         records.map { |r| @parser.parse(r, Resources::AuditEvent) }
       end
@@ -40,7 +40,7 @@ module ReactorSDK
       #
       def find(audit_event_id)
         response = @connection.get("/audit_events/#{audit_event_id}")
-        @parser.parse(response["data"], Resources::AuditEvent)
+        @parser.parse(response['data'], Resources::AuditEvent)
       end
     end
   end

@@ -31,11 +31,10 @@
 module ReactorSDK
   class Connection
     # Pins the Reactor API to version 1 on every request.
-    # Required by Adobe — omitting this may route to an unstable revision.
-    ACCEPT_HEADER = "application/vnd.api+json;revision=1"
+    ACCEPT_HEADER = 'application/vnd.api+json;revision=1'
 
-    # Required content type for all write requests (POST, PATCH, DELETE with body)
-    CONTENT_TYPE = "application/vnd.api+json"
+    # Required content type for all write requests
+    CONTENT_TYPE = 'application/vnd.api+json'
 
     ##
     # @param config       [ReactorSDK::Configuration] SDK configuration
@@ -50,9 +49,9 @@ module ReactorSDK
     end
 
     ##
-    # Executes an authenticated GET request to the Reactor API.
+    # Executes an authenticated GET request.
     #
-    # @param path   [String] Relative path (e.g. "/properties/PR123/rules")
+    # @param path   [String] Relative path
     # @param params [Hash]   Optional query string parameters
     # @return [Hash, nil] Parsed JSON response body
     # @raise [ReactorSDK::Error] on non-2xx after all retries exhausted
@@ -64,10 +63,10 @@ module ReactorSDK
     end
 
     ##
-    # Executes an authenticated POST request to the Reactor API.
+    # Executes an authenticated POST request.
     #
     # @param path [String] Relative API path
-    # @param body [Hash]   Request body — serialised to JSON automatically
+    # @param body [Hash]   Request body
     # @return [Hash, nil] Parsed JSON response body
     # @raise [ReactorSDK::Error] on non-2xx after all retries exhausted
     #
@@ -78,10 +77,10 @@ module ReactorSDK
     end
 
     ##
-    # Executes an authenticated PATCH request to the Reactor API.
+    # Executes an authenticated PATCH request.
     #
     # @param path [String] Relative API path
-    # @param body [Hash]   Partial update body — serialised to JSON automatically
+    # @param body [Hash]   Partial update body
     # @return [Hash, nil] Parsed JSON response body
     # @raise [ReactorSDK::Error] on non-2xx after all retries exhausted
     #
@@ -92,12 +91,11 @@ module ReactorSDK
     end
 
     ##
-    # Executes an authenticated DELETE request to the Reactor API.
-    # Used for resource deletion — sends no body.
-    # Adobe returns 204 No Content on successful deletion.
+    # Executes an authenticated DELETE request with no body.
+    # Used for resource deletion — Adobe returns 204 No Content on success.
     #
     # @param path [String] Relative API path
-    # @return [nil] Always returns nil on success
+    # @return [nil]
     # @raise [ReactorSDK::Error] on non-2xx after all retries exhausted
     #
     def delete(path)
@@ -108,19 +106,12 @@ module ReactorSDK
 
     ##
     # Executes an authenticated DELETE request with a JSON body.
-    #
-    # Used exclusively for JSON:API relationship removal — the Reactor API
-    # requires a body on relationship DELETE requests to identify which
-    # members to remove. Standard DELETE sends no body, so this method
-    # constructs the request manually via a Faraday block.
-    #
-    # Example: removing specific rules from a library requires:
-    #   DELETE /libraries/:id/relationships/rules
-    #   Body: { "data": [{ "id": "RL123", "type": "rules" }] }
+    # Used for JSON:API relationship removal which requires a body
+    # identifying which members to remove.
     #
     # @param path [String] Relative API path
-    # @param body [Hash]   Relationship payload identifying members to remove
-    # @return [nil] Always returns nil on success (Adobe returns 204)
+    # @param body [Hash]   Relationship payload
+    # @return [nil]
     # @raise [ReactorSDK::Error] on non-2xx after all retries exhausted
     #
     def delete_relationship(path, body)
@@ -134,7 +125,7 @@ module ReactorSDK
     private
 
     ##
-    # Builds the Faraday connection with the full middleware stack.
+    # Builds the Faraday connection with retry middleware.
     #
     # @return [Faraday::Connection]
     #
@@ -155,97 +146,84 @@ module ReactorSDK
     end
 
     ##
-    # Injects all required Adobe authentication and versioning headers.
+    # Injects required Adobe authentication and versioning headers.
     #
-    # @param req [Faraday::Request] Outgoing request — headers mutated in place
+    # @param req [Faraday::Request] Outgoing request
     # @sideeffect Modifies req.headers
     #
     def inject_headers(req)
-      req.headers["Authorization"]   = "Bearer #{@auth.access_token}"
-      req.headers["x-api-key"]       = @config.client_id
-      req.headers["x-gw-ims-org-id"] = @config.org_id
-      req.headers["Accept"]          = ACCEPT_HEADER
-      req.headers["Content-Type"]    = CONTENT_TYPE
+      req.headers['Authorization']   = "Bearer #{@auth.access_token}"
+      req.headers['x-api-key']       = @config.client_id
+      req.headers['x-gw-ims-org-id'] = @config.org_id
+      req.headers['Accept']          = ACCEPT_HEADER
+      req.headers['Content-Type']    = CONTENT_TYPE
     end
 
     ##
-    # Parses the response body and raises typed errors for non-2xx responses.
+    # Parses the response and raises typed errors for non-2xx responses.
     #
     # @param response [Faraday::Response] Raw HTTP response
-    # @return [Hash, nil] Parsed response body, or nil for 204 No Content
-    # @raise [ReactorSDK::AuthenticationError]      on 401
-    # @raise [ReactorSDK::AuthorizationError]       on 403
-    # @raise [ReactorSDK::ResourceNotFoundError]    on 404
-    # @raise [ReactorSDK::UnprocessableEntityError] on 422
-    # @raise [ReactorSDK::RateLimitError]           on 429
-    # @raise [ReactorSDK::ServerError]              on 5xx
-    # @raise [ReactorSDK::ParseError]               if body is not valid JSON
+    # @return [Hash, nil] Parsed response body or nil for 204
+    # @raise [ReactorSDK::Error] on non-2xx response
     #
     def handle_response(response)
       return nil if response.status == 204
 
       body = parse_body(response.body)
+      return body if response.status.between?(200, 299)
 
+      raise_error_for_status(response, body)
+    end
+
+    ##
+    # Raises the appropriate typed error for a non-2xx response.
+    #
+    # @param response [Faraday::Response] Raw HTTP response
+    # @param body     [Hash, nil]         Parsed response body
+    # @raise [ReactorSDK::Error]
+    #
+    def raise_error_for_status(response, body)
       case response.status
-      when 200..299
-        body
-      when 401
-        raise AuthenticationError.new(
-          "Unauthorized — check your Adobe IMS token",
-          status: 401
-        )
-      when 403
-        raise AuthorizationError.new(
-          "Forbidden — token lacks permission for this resource",
-          status: 403
-        )
-      when 404
-        raise ResourceNotFoundError.new(
-          "Resource not found: #{response.env.url.path}",
-          status: 404
-        )
-      when 422
-        raise UnprocessableEntityError.new(
-          "Validation failed",
-          validation_errors: Array(body&.dig("errors")),
-          status: 422
-        )
-      when 429
-        retry_after = response.headers["Retry-After"]&.to_i
-        raise RateLimitError.new(
-          "Rate limit exceeded — retry after #{retry_after} seconds",
-          retry_after: retry_after,
-          status: 429
-        )
-      when 500..599
-        raise ServerError.new(
-          "Adobe API server error (HTTP #{response.status})",
-          status: response.status
-        )
-      else
-        raise Error.new(
-          "Unexpected response status: #{response.status}",
-          status: response.status
-        )
+      when 401 then raise AuthenticationError.new('Unauthorized — check your Adobe IMS token', status: 401)
+      when 403 then raise AuthorizationError.new('Forbidden — token lacks permission for this resource', status: 403)
+      when 404 then raise ResourceNotFoundError.new("Resource not found: #{response.env.url.path}", status: 404)
+      when 422 then raise UnprocessableEntityError.new('Validation failed',
+                                                       validation_errors: Array(body&.dig('errors')), status: 422)
+      when 429 then raise_rate_limit_error(response)
+      when 500..599 then raise ServerError.new("Adobe API server error (HTTP #{response.status})",
+                                               status: response.status)
+      else raise Error.new("Unexpected response status: #{response.status}", status: response.status)
       end
+    end
+
+    ##
+    # Raises a RateLimitError with retry_after from the response header.
+    #
+    # @param response [Faraday::Response]
+    # @raise [ReactorSDK::RateLimitError]
+    #
+    def raise_rate_limit_error(response)
+      retry_after = response.headers['Retry-After']&.to_i
+      raise RateLimitError.new(
+        "Rate limit exceeded — retry after #{retry_after} seconds",
+        retry_after: retry_after,
+        status: 429
+      )
     end
 
     ##
     # Parses a JSON string into a Ruby Hash.
     #
-    # @param body [String] Raw response body string
-    # @return [Hash, nil] Parsed hash or nil if body is blank
-    # @raise [ReactorSDK::ParseError] if body is present but not valid JSON
+    # @param body [String] Raw response body
+    # @return [Hash, nil]
+    # @raise [ReactorSDK::ParseError] if body is not valid JSON
     #
     def parse_body(body)
       return nil if body.nil? || body.strip.empty?
 
       JSON.parse(body)
     rescue JSON::ParserError => e
-      raise ParseError.new(
-        "Could not parse API response as JSON",
-        cause: e
-      )
+      raise ParseError.new('Could not parse API response as JSON', cause: e)
     end
   end
 end

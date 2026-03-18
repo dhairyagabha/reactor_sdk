@@ -38,7 +38,7 @@ module ReactorSDK
       #
       def find(rule_id)
         response = @connection.get("/rules/#{rule_id}")
-        @parser.parse(response["data"], Resources::Rule)
+        @parser.parse(response['data'], Resources::Rule)
       end
 
       ##
@@ -51,9 +51,9 @@ module ReactorSDK
       # @raise [ReactorSDK::UnprocessableEntityError] if attributes are invalid
       #
       def create(property_id:, name:, enabled: true)
-        payload  = build_payload("rules", { name: name, enabled: enabled })
+        payload  = build_payload('rules', { name: name, enabled: enabled })
         response = @connection.post("/properties/#{property_id}/rules", payload)
-        @parser.parse(response["data"], Resources::Rule)
+        @parser.parse(response['data'], Resources::Rule)
       end
 
       ##
@@ -65,9 +65,9 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the rule does not exist
       #
       def update(rule_id, attributes)
-        payload  = build_payload("rules", attributes, id: rule_id)
+        payload  = build_payload('rules', attributes, id: rule_id)
         response = @connection.patch("/rules/#{rule_id}", payload)
-        @parser.parse(response["data"], Resources::Rule)
+        @parser.parse(response['data'], Resources::Rule)
       end
 
       ##

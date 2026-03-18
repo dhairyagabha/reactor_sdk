@@ -58,7 +58,7 @@ module ReactorSDK
       #
       def find(library_id)
         response = @connection.get("/libraries/#{library_id}")
-        @parser.parse(response["data"], Resources::Library)
+        @parser.parse(response['data'], Resources::Library)
       end
 
       ##
@@ -81,7 +81,7 @@ module ReactorSDK
       def find_with_resources(library_id)
         response = @connection.get(
           "/libraries/#{library_id}",
-          params: { "include" => "rules,data_elements,extensions" }
+          params: { 'include' => 'rules,data_elements,extensions' }
         )
         build_library_with_resources(response)
       end
@@ -97,9 +97,9 @@ module ReactorSDK
       # @raise [ReactorSDK::UnprocessableEntityError] if attributes are invalid
       #
       def create(property_id:, name:)
-        payload  = build_payload("libraries", { name: name })
+        payload  = build_payload('libraries', { name: name })
         response = @connection.post("/properties/#{property_id}/libraries", payload)
-        @parser.parse(response["data"], Resources::Library)
+        @parser.parse(response['data'], Resources::Library)
       end
 
       # ── Rules relationship management ───────────────────────────
@@ -115,7 +115,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
       #
       def add_rules(library_id, rule_ids)
-        payload = build_relationship_payload("rules", rule_ids)
+        payload = build_relationship_payload('rules', rule_ids)
         @connection.post("/libraries/#{library_id}/relationships/rules", payload)
         nil
       end
@@ -130,7 +130,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
       #
       def remove_rules(library_id, rule_ids)
-        payload = build_relationship_payload("rules", rule_ids)
+        payload = build_relationship_payload('rules', rule_ids)
         @connection.delete_relationship("/libraries/#{library_id}/relationships/rules", payload)
         nil
       end
@@ -149,7 +149,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
       #
       def set_rules(library_id, rule_ids)
-        payload = build_relationship_payload("rules", rule_ids)
+        payload = build_relationship_payload('rules', rule_ids)
         @connection.patch("/libraries/#{library_id}/relationships/rules", payload)
         nil
       end
@@ -166,7 +166,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
       #
       def add_data_elements(library_id, data_element_ids)
-        payload = build_relationship_payload("data_elements", data_element_ids)
+        payload = build_relationship_payload('data_elements', data_element_ids)
         @connection.post("/libraries/#{library_id}/relationships/data_elements", payload)
         nil
       end
@@ -181,7 +181,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
       #
       def remove_data_elements(library_id, data_element_ids)
-        payload = build_relationship_payload("data_elements", data_element_ids)
+        payload = build_relationship_payload('data_elements', data_element_ids)
         @connection.delete_relationship("/libraries/#{library_id}/relationships/data_elements", payload)
         nil
       end
@@ -200,7 +200,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
       #
       def set_data_elements(library_id, data_element_ids)
-        payload = build_relationship_payload("data_elements", data_element_ids)
+        payload = build_relationship_payload('data_elements', data_element_ids)
         @connection.patch("/libraries/#{library_id}/relationships/data_elements", payload)
         nil
       end
@@ -217,7 +217,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
       #
       def add_extensions(library_id, extension_ids)
-        payload = build_relationship_payload("extensions", extension_ids)
+        payload = build_relationship_payload('extensions', extension_ids)
         @connection.post("/libraries/#{library_id}/relationships/extensions", payload)
         nil
       end
@@ -232,7 +232,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
       #
       def remove_extensions(library_id, extension_ids)
-        payload = build_relationship_payload("extensions", extension_ids)
+        payload = build_relationship_payload('extensions', extension_ids)
         @connection.delete_relationship("/libraries/#{library_id}/relationships/extensions", payload)
         nil
       end
@@ -250,7 +250,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
       #
       def set_extensions(library_id, extension_ids)
-        payload = build_relationship_payload("extensions", extension_ids)
+        payload = build_relationship_payload('extensions', extension_ids)
         @connection.patch("/libraries/#{library_id}/relationships/extensions", payload)
         nil
       end
@@ -267,7 +267,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if either resource does not exist
       #
       def assign_environment(library_id, environment_id)
-        payload = { data: { id: environment_id, type: "environments" } }
+        payload = { data: { id: environment_id, type: 'environments' } }
         @connection.patch("/libraries/#{library_id}/relationships/environment", payload)
         nil
       end
@@ -287,9 +287,9 @@ module ReactorSDK
       # @raise [ReactorSDK::UnprocessableEntityError] if the transition is invalid
       #
       def transition(library_id, state:)
-        payload  = build_payload("libraries", { state: state }, id: library_id)
+        payload  = build_payload('libraries', { state: state }, id: library_id)
         response = @connection.patch("/libraries/#{library_id}", payload)
-        @parser.parse(response["data"], Resources::Library)
+        @parser.parse(response['data'], Resources::Library)
       end
 
       # ── Build ───────────────────────────────────────────────────
@@ -304,7 +304,7 @@ module ReactorSDK
       #
       def build(library_id)
         response = @connection.post("/libraries/#{library_id}/builds", {})
-        @parser.parse(response["data"], Resources::Build)
+        @parser.parse(response['data'], Resources::Build)
       end
 
       # ── Upstream resolution ─────────────────────────────────────
@@ -334,7 +334,7 @@ module ReactorSDK
         target_stage = fetch_library_stage(library_id)
 
         return [] if target_stage.nil?
-        return [] if target_stage == "production"
+        return [] if target_stage == 'production'
 
         upstream_stages = stages_above(target_stage)
         all_libraries   = list_for_property(property_id)
@@ -356,20 +356,20 @@ module ReactorSDK
       # @return [ReactorSDK::Resources::LibraryWithResources]
       #
       def build_library_with_resources(response)
-        data     = response.fetch("data")
-        included = Array(response["included"])
+        data     = response.fetch('data')
+        included = Array(response['included'])
 
-        included_by_type = included.group_by { |r| r["type"] }
+        included_by_type = included.group_by { |r| r['type'] }
 
         Resources::LibraryWithResources.new(
-          id: data.fetch("id"),
-          type: data.fetch("type"),
-          attributes: data.fetch("attributes", {}),
-          meta: data.fetch("meta", {}),
+          id: data.fetch('id'),
+          type: data.fetch('type'),
+          attributes: data.fetch('attributes', {}),
+          meta: data.fetch('meta', {}),
           included_resources: {
-            "rules" => included_by_type.fetch("rules", []),
-            "data_elements" => included_by_type.fetch("data_elements", []),
-            "extensions" => included_by_type.fetch("extensions", [])
+            'rules' => included_by_type.fetch('rules', []),
+            'data_elements' => included_by_type.fetch('data_elements', []),
+            'extensions' => included_by_type.fetch('extensions', [])
           }
         )
       end
@@ -383,11 +383,11 @@ module ReactorSDK
       #
       def fetch_library_stage(library_id)
         env_rel = @connection.get("/libraries/#{library_id}/relationships/environment")
-        env_id  = env_rel&.dig("data", "id")
+        env_id  = env_rel&.dig('data', 'id')
         return nil unless env_id
 
         env_response = @connection.get("/environments/#{env_id}")
-        env_response&.dig("data", "attributes", "stage")
+        env_response&.dig('data', 'attributes', 'stage')
       end
 
       ##

@@ -32,7 +32,7 @@ module ReactorSDK
       # @return [Boolean]
       #
       def succeeded?
-        status == "succeeded"
+        status == 'succeeded'
       end
 
       ##
@@ -50,7 +50,7 @@ module ReactorSDK
       # @return [Boolean]
       #
       def failed?
-        status == "failed"
+        status == 'failed'
       end
 
       ##

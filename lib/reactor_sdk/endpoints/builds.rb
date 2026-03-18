@@ -25,7 +25,7 @@ module ReactorSDK
       #
       def find(build_id)
         response = @connection.get("/builds/#{build_id}")
-        @parser.parse(response["data"], Resources::Build)
+        @parser.parse(response['data'], Resources::Build)
       end
 
       ##

@@ -22,7 +22,7 @@ module ReactorSDK
       # @raise [ReactorSDK::AuthorizationError] if the token lacks access
       #
       def list
-        records = @paginator.all("/companies")
+        records = @paginator.all('/companies')
         records.map { |r| @parser.parse(r, Resources::Company) }
       end
 
@@ -35,7 +35,7 @@ module ReactorSDK
       #
       def find(company_id)
         response = @connection.get("/companies/#{company_id}")
-        @parser.parse(response["data"], Resources::Company)
+        @parser.parse(response['data'], Resources::Company)
       end
     end
   end
