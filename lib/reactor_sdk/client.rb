@@ -25,15 +25,8 @@
 #   companies  = client.companies.list
 #   properties = client.properties.list_for_company(companies.first.id)
 #   rules      = client.rules.list_for_property(properties.first.id)
-#
-# @example With optional logger
-#   require "logger"
-#   client = ReactorSDK::Client.new(
-#     client_id:     ENV["ADOBE_CLIENT_ID"],
-#     client_secret: ENV["ADOBE_CLIENT_SECRET"],
-#     org_id:        ENV["ADOBE_IMS_ORG_ID"],
-#     logger:        Logger.new($stdout)
-#   )
+#   library    = client.libraries.find_with_resources("LB123")
+#   revision   = client.revisions.find("RE123")
 #
 
 module ReactorSDK
@@ -68,6 +61,9 @@ module ReactorSDK
     # @return [ReactorSDK::Endpoints::AuditEvents]
     attr_reader :audit_events
 
+    # @return [ReactorSDK::Endpoints::Revisions]
+    attr_reader :revisions
+
     # @return [ReactorSDK::Configuration] The configuration used by this client
     attr_reader :config
 
@@ -75,13 +71,13 @@ module ReactorSDK
     # Initializes the client and all infrastructure dependencies.
     # Raises immediately if credentials are missing — never mid-request.
     #
-    # @param client_id     [String]  Adobe Developer Console client ID
-    # @param client_secret [String]  Adobe Developer Console client secret
-    # @param org_id        [String]  Adobe IMS organisation ID
-    # @param base_url      [String]  Override Reactor API base URL (optional)
-    # @param ims_token_url [String]  Override IMS token URL — for testing (optional)
-    # @param timeout       [Integer] HTTP timeout in seconds (optional, default: 30)
-    # @param logger        [Logger]  Custom logger — logs HTTP calls if provided (optional)
+    # @param client_id          [String]  Adobe Developer Console client ID
+    # @param client_secret      [String]  Adobe Developer Console client secret
+    # @param org_id             [String]  Adobe IMS organisation ID
+    # @param base_url           [String]  Override Reactor API base URL (optional)
+    # @param ims_token_url      [String]  Override IMS token URL — for testing (optional)
+    # @param timeout            [Integer] HTTP timeout in seconds (optional, default: 30)
+    # @param logger             [Logger]  Custom logger — logs HTTP calls if provided (optional)
     # @param auto_refresh_token [Boolean] Auto-refresh token before expiry (optional, default: true)
     # @raise [ReactorSDK::ConfigurationError] if any required credential is blank
     #
@@ -89,10 +85,10 @@ module ReactorSDK
       client_id:,
       client_secret:,
       org_id:,
-      base_url: Configuration::DEFAULT_BASE_URL,
-      ims_token_url: Authentication::IMS_TOKEN_URL,
-      timeout: Configuration::DEFAULT_TIMEOUT,
-      logger: nil,
+      base_url:           Configuration::DEFAULT_BASE_URL,
+      ims_token_url:      Authentication::IMS_TOKEN_URL,
+      timeout:            Configuration::DEFAULT_TIMEOUT,
+      logger:             nil,
       auto_refresh_token: true
     )
       @config = Configuration.new(
@@ -140,16 +136,17 @@ module ReactorSDK
         parser:     @parser
       }
 
-      @companies      = Endpoints::Companies.new(**deps)
-      @properties     = Endpoints::Properties.new(**deps)
-      @environments   = Endpoints::Environments.new(**deps)
-      @rules          = Endpoints::Rules.new(**deps)
+      @companies       = Endpoints::Companies.new(**deps)
+      @properties      = Endpoints::Properties.new(**deps)
+      @environments    = Endpoints::Environments.new(**deps)
+      @rules           = Endpoints::Rules.new(**deps)
       @rule_components = Endpoints::RuleComponents.new(**deps)
-      @data_elements  = Endpoints::DataElements.new(**deps)
-      @extensions     = Endpoints::Extensions.new(**deps)
-      @libraries      = Endpoints::Libraries.new(**deps)
-      @builds         = Endpoints::Builds.new(**deps)
-      @audit_events   = Endpoints::AuditEvents.new(**deps)
+      @data_elements   = Endpoints::DataElements.new(**deps)
+      @extensions      = Endpoints::Extensions.new(**deps)
+      @libraries       = Endpoints::Libraries.new(**deps)
+      @builds          = Endpoints::Builds.new(**deps)
+      @audit_events    = Endpoints::AuditEvents.new(**deps)
+      @revisions       = Endpoints::Revisions.new(**deps)
     end
   end
 end

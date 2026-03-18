@@ -6,7 +6,7 @@
 #
 #   Covers: list, find, create, add_rules, add_data_elements,
 #   add_extensions, assign_environment, transition, build,
-#   and error handling.
+#   find_with_resources, upstream_libraries, and error handling.
 #
 
 RSpec.describe ReactorSDK::Endpoints::Libraries do
@@ -57,6 +57,8 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     ).to_json
   end
 
+  # ── list_for_property ─────────────────────────────────────────
+
   describe "#list_for_property" do
     before do
       stub_request(:get, "https://reactor.adobe.io/properties/PR123/libraries?page%5Bsize%5D=100")
@@ -84,6 +86,8 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
       expect(result.map(&:id)).to eq(["LB123", "LB456"])
     end
   end
+
+  # ── find ──────────────────────────────────────────────────────
 
   describe "#find" do
     before do
@@ -123,6 +127,8 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
   end
 
+  # ── create ────────────────────────────────────────────────────
+
   describe "#create" do
     before do
       stub_request(:post, "https://reactor.adobe.io/properties/PR123/libraries")
@@ -140,6 +146,8 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
       expect(result.state).to eq("development")
     end
   end
+
+  # ── add_rules ─────────────────────────────────────────────────
 
   describe "#add_rules" do
     before do
@@ -159,6 +167,8 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
   end
 
+  # ── add_data_elements ─────────────────────────────────────────
+
   describe "#add_data_elements" do
     before do
       stub_request(:post, "https://reactor.adobe.io/libraries/LB123/relationships/data_elements")
@@ -176,6 +186,8 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
         .with(body: { data: [{ id: "DE123", type: "data_elements" }] }.to_json)
     end
   end
+
+  # ── add_extensions ────────────────────────────────────────────
 
   describe "#add_extensions" do
     before do
@@ -195,6 +207,8 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
   end
 
+  # ── assign_environment ────────────────────────────────────────
+
   describe "#assign_environment" do
     before do
       stub_request(:patch, "https://reactor.adobe.io/libraries/LB123/relationships/environment")
@@ -212,6 +226,8 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
         .with(body: { data: { id: "EN123", type: "environments" } }.to_json)
     end
   end
+
+  # ── transition ────────────────────────────────────────────────
 
   describe "#transition" do
     before do
@@ -238,6 +254,8 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
   end
 
+  # ── build ─────────────────────────────────────────────────────
+
   describe "#build" do
     before do
       stub_request(:post, "https://reactor.adobe.io/libraries/LB123/builds")
@@ -253,6 +271,220 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
       result = client.libraries.build("LB123")
       expect(result.status).to eq("succeeded")
       expect(result.succeeded?).to be(true)
+    end
+  end
+
+  # ── find_with_resources ───────────────────────────────────────
+
+  describe "#find_with_resources" do
+    let(:with_resources_response) do
+      {
+        "data" => {
+          "id"         => "LB123",
+          "type"       => "libraries",
+          "attributes" => library_attributes
+        },
+        "included" => [
+          {
+            "id"   => "RL123", "type" => "rules",
+            "attributes"    => { "name" => "Order Confirmation", "enabled" => true },
+            "relationships" => { "latest_revision" => { "data" => { "id" => "RE001", "type" => "revisions" } } }
+          },
+          {
+            "id"   => "RL456", "type" => "rules",
+            "attributes"    => { "name" => "Add to Cart", "enabled" => true },
+            "relationships" => { "latest_revision" => { "data" => { "id" => "RE002", "type" => "revisions" } } }
+          },
+          {
+            "id"   => "DE123", "type" => "data_elements",
+            "attributes"    => { "name" => "Page Name" },
+            "relationships" => { "latest_revision" => { "data" => { "id" => "RE010", "type" => "revisions" } } }
+          },
+          {
+            "id"   => "EX123", "type" => "extensions",
+            "attributes"    => { "name" => "Adobe Analytics" },
+            "relationships" => { "latest_revision" => { "data" => { "id" => "RE020", "type" => "revisions" } } }
+          }
+        ]
+      }.to_json
+    end
+
+    before do
+      stub_request(:get, "https://reactor.adobe.io/libraries/LB123?include=rules%2Cdata_elements%2Cextensions")
+        .to_return(status: 200, body: with_resources_response, headers: { "Content-Type" => "application/json" })
+    end
+
+    it "returns a LibraryWithResources resource" do
+      result = client.libraries.find_with_resources("LB123")
+      expect(result).to be_a(ReactorSDK::Resources::LibraryWithResources)
+    end
+
+    it "maps library attributes correctly" do
+      result = client.libraries.find_with_resources("LB123")
+      expect(result.name).to eq("Release 1.0")
+      expect(result.state).to eq("development")
+    end
+
+    it "returns the correct number of rules" do
+      result = client.libraries.find_with_resources("LB123")
+      expect(result.rules.length).to eq(2)
+    end
+
+    it "attaches revision_id to each rule" do
+      result = client.libraries.find_with_resources("LB123")
+      expect(result.rules.first.revision_id).to eq("RE001")
+      expect(result.rules.last.revision_id).to eq("RE002")
+    end
+
+    it "returns the correct number of data elements" do
+      result = client.libraries.find_with_resources("LB123")
+      expect(result.data_elements.length).to eq(1)
+    end
+
+    it "attaches revision_id to each data element" do
+      result = client.libraries.find_with_resources("LB123")
+      expect(result.data_elements.first.revision_id).to eq("RE010")
+    end
+
+    it "returns the correct number of extensions" do
+      result = client.libraries.find_with_resources("LB123")
+      expect(result.extensions.length).to eq(1)
+    end
+
+    it "attaches revision_id to each extension" do
+      result = client.libraries.find_with_resources("LB123")
+      expect(result.extensions.first.revision_id).to eq("RE020")
+    end
+
+    it "builds the resource_index correctly" do
+      result = client.libraries.find_with_resources("LB123")
+      expect(result.resource_index).to eq(
+        "RL123" => "RE001",
+        "RL456" => "RE002",
+        "DE123" => "RE010",
+        "EX123" => "RE020"
+      )
+    end
+  end
+
+  # ── upstream_libraries ────────────────────────────────────────
+
+  describe "#upstream_libraries" do
+    let(:dev_env_id)  { "EN_DEV" }
+    let(:stg_env_id)  { "EN_STG" }
+    let(:prod_env_id) { "EN_PRD" }
+
+    let(:dev_library)  { { "id" => "LB_DEV", "type" => "libraries", "attributes" => library_attributes.merge("name" => "Dev Library") } }
+    let(:stg_library)  { { "id" => "LB_STG", "type" => "libraries", "attributes" => library_attributes.merge("name" => "Staging Library") } }
+    let(:prod_library) { { "id" => "LB_PRD", "type" => "libraries", "attributes" => library_attributes.merge("name" => "Production Library") } }
+
+    def stub_library_find(library_id, attrs)
+      stub_request(:get, "https://reactor.adobe.io/libraries/#{library_id}")
+        .to_return(
+          status:  200,
+          body:    { "data" => { "id" => library_id, "type" => "libraries", "attributes" => attrs } }.to_json,
+          headers: { "Content-Type" => "application/json" }
+        )
+    end
+
+    def stub_library_env(library_id, env_id)
+      stub_request(:get, "https://reactor.adobe.io/libraries/#{library_id}/relationships/environment")
+        .to_return(
+          status:  200,
+          body:    { "data" => { "id" => env_id, "type" => "environments" } }.to_json,
+          headers: { "Content-Type" => "application/json" }
+        )
+    end
+
+    def stub_env_stage(env_id, stage)
+      stub_request(:get, "https://reactor.adobe.io/environments/#{env_id}")
+        .to_return(
+          status:  200,
+          body:    { "data" => { "id" => env_id, "type" => "environments", "attributes" => { "stage" => stage } } }.to_json,
+          headers: { "Content-Type" => "application/json" }
+        )
+    end
+
+    context "when target is the Development library" do
+      before do
+        stub_library_find("LB_DEV", library_attributes.merge("name" => "Dev Library"))
+        stub_library_find("LB_STG", library_attributes.merge("name" => "Staging Library"))
+        stub_library_find("LB_PRD", library_attributes.merge("name" => "Production Library"))
+
+        stub_request(:get, "https://reactor.adobe.io/properties/PR123/libraries?page%5Bsize%5D=100")
+          .to_return(
+            status:  200,
+            body:    { "data" => [dev_library, stg_library, prod_library], "links" => { "next" => nil } }.to_json,
+            headers: { "Content-Type" => "application/json" }
+          )
+
+        stub_library_env("LB_DEV", dev_env_id)
+        stub_library_env("LB_STG", stg_env_id)
+        stub_library_env("LB_PRD", prod_env_id)
+
+        stub_env_stage(dev_env_id,  "development")
+        stub_env_stage(stg_env_id,  "staging")
+        stub_env_stage(prod_env_id, "production")
+      end
+
+      it "returns staging and production libraries" do
+        result = client.libraries.upstream_libraries("LB_DEV", property_id: "PR123")
+        expect(result.length).to eq(2)
+      end
+
+      it "returns staging library first" do
+        result = client.libraries.upstream_libraries("LB_DEV", property_id: "PR123")
+        expect(result.first.name).to eq("Staging Library")
+      end
+
+      it "returns production library last" do
+        result = client.libraries.upstream_libraries("LB_DEV", property_id: "PR123")
+        expect(result.last.name).to eq("Production Library")
+      end
+
+      it "returns Library resources" do
+        result = client.libraries.upstream_libraries("LB_DEV", property_id: "PR123")
+        expect(result).to all(be_a(ReactorSDK::Resources::Library))
+      end
+    end
+
+    context "when target is the Staging library" do
+      before do
+        stub_library_find("LB_STG", library_attributes.merge("name" => "Staging Library"))
+        stub_library_find("LB_PRD", library_attributes.merge("name" => "Production Library"))
+
+        stub_request(:get, "https://reactor.adobe.io/properties/PR123/libraries?page%5Bsize%5D=100")
+          .to_return(
+            status:  200,
+            body:    { "data" => [stg_library, prod_library], "links" => { "next" => nil } }.to_json,
+            headers: { "Content-Type" => "application/json" }
+          )
+
+        stub_library_env("LB_STG", stg_env_id)
+        stub_library_env("LB_PRD", prod_env_id)
+
+        stub_env_stage(stg_env_id,  "staging")
+        stub_env_stage(prod_env_id, "production")
+      end
+
+      it "returns only the production library" do
+        result = client.libraries.upstream_libraries("LB_STG", property_id: "PR123")
+        expect(result.length).to eq(1)
+        expect(result.first.name).to eq("Production Library")
+      end
+    end
+
+    context "when target is the Production library" do
+      before do
+        stub_library_find("LB_PRD", library_attributes.merge("name" => "Production Library"))
+        stub_library_env("LB_PRD", prod_env_id)
+        stub_env_stage(prod_env_id, "production")
+      end
+
+      it "returns an empty array" do
+        result = client.libraries.upstream_libraries("LB_PRD", property_id: "PR123")
+        expect(result).to eq([])
+      end
     end
   end
 end
