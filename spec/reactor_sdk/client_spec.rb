@@ -4,7 +4,7 @@
 # @file spec/reactor_sdk/client_spec.rb
 # @description Tests for ReactorSDK::Client.
 #
-#   Covers: initialization, credential validation, endpoint
+#   Covers: initialization, credential validation, all endpoint
 #   group availability, and config exposure.
 #
 
@@ -90,6 +90,10 @@ RSpec.describe ReactorSDK::Client do
 
     it "exposes audit_events endpoint" do
       expect(client.audit_events).to be_a(ReactorSDK::Endpoints::AuditEvents)
+    end
+
+    it "exposes revisions endpoint" do
+      expect(client.revisions).to be_a(ReactorSDK::Endpoints::Revisions)
     end
   end
 end
