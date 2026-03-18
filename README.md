@@ -155,7 +155,6 @@ companies = client.companies.list
 
 # Find a company by ID
 company = client.companies.find("CO123")
-# => #<ReactorSDK::Resources::Company id="CO123" name="Acme Corp">
 ```
 
 ### Properties
@@ -193,7 +192,8 @@ environments.each { |e| puts "#{e.name} — #{e.stage}" }
 
 # Find an environment
 environment = client.environments.find("EN123")
-puts environment.stage  # => "development"
+puts environment.stage     # => "development"
+puts environment.archived? # => false
 
 # Create a personal developer sandbox environment
 environment = client.environments.create(
@@ -238,7 +238,8 @@ components = client.rule_components.list_for_rule("RL123")
 components.each do |c|
   puts c.name
   puts c.delegate_descriptor_id  # e.g. "core::actions::custom-code"
-  puts c.parsed_settings.inspect # full settings as a Ruby Hash
+  puts c.order
+  puts c.parsed_settings.inspect # full settings as a Ruby Hash — see parsed_settings
 end
 
 # Find a rule component
@@ -252,7 +253,8 @@ elements = client.data_elements.list_for_property("PR123")
 elements.each do |e|
   puts e.name
   puts e.delegate_descriptor_id
-  puts e.parsed_settings.inspect
+  puts e.storage_duration
+  puts e.parsed_settings.inspect # full settings as a Ruby Hash — see parsed_settings
 end
 
 # Find a data element
@@ -285,78 +287,138 @@ extension = client.extensions.find("EX123")
 ```
 
 ### Libraries
+
+Libraries are the central resource in the Adobe Launch publishing workflow. They collect rules, data elements, and extensions into a deployable bundle and move through a state machine from development to production.
+
+#### Finding libraries
 ```ruby
 # List all libraries for a property
 libraries = client.libraries.list_for_property("PR123")
 
 # Find a library
 library = client.libraries.find("LB123")
-puts library.name      # => "Release 1.0"
-puts library.state     # => "development"
-puts library.buildable?  # => true
-puts library.published?  # => false
+puts library.name       # => "Release 1.0"
+puts library.state      # => "development"
+puts library.buildable? # => true
+puts library.published? # => false
 
-# Create a library
+# Fetch a library with all included resources and their current revision IDs
+library = client.libraries.find_with_resources("LB123")
+puts library.rules.length              # => 3
+puts library.rules.first.revision_id  # => "RE001"
+puts library.resource_index           # => { "RL123" => "RE001", ... }
+```
+
+#### Creating libraries
+```ruby
 library = client.libraries.create(
   property_id: "PR123",
   name:        "Release 1.0"
 )
+```
 
-# Add resources to a library
+#### Adding resources to a library
+
+Adds the specified resources. All existing resources already in the library are preserved.
+```ruby
 client.libraries.add_rules("LB123",         ["RL123", "RL456"])
 client.libraries.add_data_elements("LB123", ["DE123"])
 client.libraries.add_extensions("LB123",    ["EX123"])
+```
 
-# Assign an environment to a library
+#### Removing specific resources from a library
+
+Removes only the specified resources. All other resources in the library are preserved.
+```ruby
+client.libraries.remove_rules("LB123",         ["RL123"])
+client.libraries.remove_data_elements("LB123", ["DE123"])
+client.libraries.remove_extensions("LB123",    ["EX123"])
+```
+
+#### Replacing the entire resource list for a type
+
+Replaces the **complete** list for that resource type. Any resource not included in the new list is removed. Passing an empty array removes all resources of that type.
+
+**Use with caution — this is a destructive operation.**
+```ruby
+# Only RL456 remains — RL123 is removed
+client.libraries.set_rules("LB123", ["RL456"])
+
+# Replace all data elements
+client.libraries.set_data_elements("LB123", ["DE456", "DE789"])
+
+# Remove all extensions
+client.libraries.set_extensions("LB123", [])
+```
+
+#### Assigning an environment and building
+
+A library must have an environment assigned before it can be built.
+```ruby
+# Assign an environment
 client.libraries.assign_environment("LB123", "EN123")
 
-# Transition a library through its workflow
-# development -> submitted -> approved -> published
-# development -> submitted -> rejected -> development
-library = client.libraries.transition("LB123", state: "submitted")
-
-# Trigger a build
+# Trigger a build — compiles the library into a deployable JavaScript bundle
 build = client.libraries.build("LB123")
+puts build.id      # => "BL123"
 puts build.status  # => "pending"
+```
 
-# Fetch a library with all included resources and their revision IDs
-library = client.libraries.find_with_resources("LB123")
-puts library.rules.length                  # => 3
-puts library.rules.first.revision_id      # => "RE001"
-puts library.resource_index.inspect       # => { "RL123" => "RE001", ... }
+#### Promoting through the state machine
+```ruby
+# development → submitted → approved → published
+# development → submitted → rejected → development
 
-# Resolve upstream libraries
+client.libraries.transition("LB123", state: "submitted")
+client.libraries.transition("LB123", state: "approved")
+client.libraries.transition("LB123", state: "published")
+
+# Reject after submission
+client.libraries.transition("LB123", state: "rejected")
+```
+
+#### Resolving upstream libraries
+```ruby
 # Returns ordered list of libraries above the target in the environment chain
+# Development → [staging_library, production_library]
+# Staging     → [production_library]
+# Production  → []
+
 upstream = client.libraries.upstream_libraries("LB_DEV", property_id: "PR123")
-# Development target  → [staging_library, production_library]
-# Staging target      → [production_library]
-# Production target   → []
+upstream.first.name  # => "Staging Library"
+upstream.last.name   # => "Production Library"
 ```
 
 ### Builds
 ```ruby
-# Find a build by ID — use this to poll build status
+# Find a build — use this to poll build status after triggering a build
 build = client.builds.find("BL123")
-puts build.status       # => "processing"
-puts build.succeeded?   # => false
-puts build.pending?     # => true
-puts build.failed?      # => false
+puts build.status      # => "processing"
+puts build.succeeded?  # => false
+puts build.pending?    # => true
+puts build.failed?     # => false
 
 # List all builds for a library
 builds = client.builds.list_for_library("LB123")
-latest = builds.first
-puts latest.succeeded?  # => true
+
+# Polling pattern — wait for a build to complete
+loop do
+  build = client.builds.find(build.id)
+  break if build.succeeded? || build.failed?
+  puts "Build #{build.status} — waiting..."
+  sleep 30
+end
+
+puts build.succeeded? ? "Build complete" : "Build failed"
 ```
 
 ### Revisions
 
 Revisions are point-in-time snapshots of rules, data elements, and extensions. They are the foundation of any diffing or comparison workflow.
 
-**Important distinction:**
-- `list_for_*` methods return revision metadata only — no entity snapshot
-- `find` returns the full revision including the complete entity snapshot
-
-Always use `find` when you need the actual resource attributes for comparison.
+**Key distinction:**
+- `list_for_*` returns revision metadata only — no entity snapshot. Use when discovering available revision IDs.
+- `find` returns the full revision including the complete entity snapshot. Always use this when you need actual resource attributes for comparison.
 ```ruby
 # List all revisions for a rule (metadata only — no snapshot)
 revisions = client.revisions.list_for_rule("RL123")
@@ -420,13 +482,17 @@ The `settings` field in the Reactor API varies significantly across extension ty
 - **Adobe Analytics actions** — JSON-encoded string containing variable mappings and custom setup blocks
 - **Third-party extensions** — any structure the extension author defines
 
-`parsed_settings` handles all of these uniformly:
+`parsed_settings` handles all of these uniformly and safely:
 ```ruby
 component = client.rule_components.find("RC123")
 
 # Core custom code — JavaScript
 component.parsed_settings
 # => { "source" => "var x = _satellite.getVar('page_name');", "language" => "javascript" }
+
+# Core custom code — HTML
+component.parsed_settings
+# => { "source" => "<div class='modal'>...</div>", "language" => "html" }
 
 # Adobe Web SDK — XDM object
 component.parsed_settings
@@ -436,11 +502,18 @@ component.parsed_settings
 component.parsed_settings
 # => { "trackerProperties" => { "eVars" => [...], "events" => [...] }, "customSetup" => { ... } }
 
-# Nil, blank, or unparseable — never raises
+# Nil, blank, or unparseable — never raises, always returns Hash
 component.parsed_settings  # => {}
 
-# Raw value is always preserved unchanged
+# Raw value is always preserved unchanged regardless of what parsed_settings returns
 component.settings         # => original string exactly as Adobe returned it
+```
+
+The same method is available on `DataElement`:
+```ruby
+element = client.data_elements.find("DE123")
+element.parsed_settings  # => { "source" => "return digitalData.page.name;", "language" => "javascript" }
+element.settings         # => raw string unchanged
 ```
 
 ### LibraryWithResources
@@ -449,20 +522,27 @@ component.settings         # => original string exactly as Adobe returned it
 ```ruby
 library = client.libraries.find_with_resources("LB123")
 
-# Access included resources
+# Access included resources as typed objects
 library.rules           # => [#<Rule id="RL123" ...>, ...]
 library.data_elements   # => [#<DataElement id="DE123" ...>, ...]
 library.extensions      # => [#<Extension id="EX123" ...>, ...]
 
 # Each resource has its current revision ID attached
-library.rules.first.revision_id  # => "RE001"
+library.rules.first.revision_id           # => "RE001"
+library.data_elements.first.revision_id   # => "RE010"
+library.extensions.first.revision_id      # => "RE020"
 
 # Flat index of all resources → revision IDs across all types
+# Used to compare two libraries and detect what changed
 library.resource_index
 # => { "RL123" => "RE001", "RL456" => "RE002", "DE123" => "RE010", "EX123" => "RE020" }
 
 # All resources as a flat array regardless of type
 library.all_resources  # => [Rule, Rule, DataElement, Extension]
+
+# Standard library convenience methods
+library.buildable?  # => true
+library.published?  # => false
 ```
 
 ### Revision snapshots
@@ -476,44 +556,43 @@ revision.entity_type     # => "rules"
 revision.activity_type   # => "updated"
 revision.created_at      # => "2024-06-01T14:32:00.000Z"
 
-# Full attributes of the resource at this revision
+# Full attributes of the resource at this revision — use this for comparison
 revision.entity_snapshot
 # => {
-#   "name"    => "Order Confirmation",
-#   "enabled" => true,
+#   "name"       => "Order Confirmation",
+#   "enabled"    => true,
 #   "created_at" => "2024-01-01T00:00:00.000Z",
 #   ...
 # }
 ```
 
-Revisions fetched via list methods (`list_for_rule`, etc.) return metadata only — `entity_snapshot` returns `{}`. Always use `find` when you need the snapshot.
+Revisions fetched via list methods return metadata only — `entity_snapshot` returns `{}`. Always use `find` when you need the snapshot.
 
 ### Upstream library resolution
 
-In Adobe Launch, environments are arranged in a hierarchy:
+In Adobe Launch, environments are arranged in a promotion hierarchy:
 ```
 Personal Dev → Development → Staging → Production
 ```
 
-Changes flow upward — a rule must pass through Development and Staging before reaching Production. "Upstream" means closer to Production.
+Changes flow upward — resources must pass through Development and Staging before reaching Production. **Upstream** means closer to Production.
 
 `upstream_libraries` returns the ordered list of libraries above a given target:
 ```ruby
-# Target is Development → returns [staging_library, production_library]
+# Target is Development → [staging_library, production_library]
 upstream = client.libraries.upstream_libraries("LB_DEV", property_id: "PR123")
-
 upstream.first.name  # => "Staging Library"
 upstream.last.name   # => "Production Library"
 
-# Target is Staging → returns [production_library]
+# Target is Staging → [production_library]
 upstream = client.libraries.upstream_libraries("LB_STG", property_id: "PR123")
 
-# Target is Production → returns []
+# Target is Production → [] (nothing upstream)
 upstream = client.libraries.upstream_libraries("LB_PRD", property_id: "PR123")
 # => []
 ```
 
-**Typical upstream resolution pattern** — finding the nearest upstream version of a resource:
+**Typical upstream resolution pattern** — finding the nearest upstream version of a resource when it does not exist in the target library:
 ```ruby
 source_library = client.libraries.find_with_resources("LB_PERSONAL")
 target_library = client.libraries.find_with_resources("LB_DEV")
@@ -525,6 +604,7 @@ source_library.rules.each do |rule|
     source_revision = client.revisions.find(rule.revision_id)
     target_revision = client.revisions.find(target_library.resource_index[rule.id])
     # Compare source_revision.entity_snapshot vs target_revision.entity_snapshot
+
   else
     # Resource not in target — walk upstream to find nearest version
     upstream_revision_id = upstream.lazy.filter_map do |lib|
@@ -536,7 +616,7 @@ source_library.rules.each do |rule|
       upstream_revision = client.revisions.find(upstream_revision_id)
       # Compare rule against upstream_revision.entity_snapshot
     else
-      # Resource is net new — no upstream version exists
+      # Resource is net new — no upstream version exists anywhere in the chain
     end
   end
 end
@@ -552,14 +632,14 @@ All errors inherit from `ReactorSDK::Error` so you can rescue broadly or narrowl
 begin
   client.properties.find("PR_INVALID")
 rescue ReactorSDK::Error => e
-  puts "SDK error: #{e.message} (status: #{e.status})"
+  puts "SDK error: #{e.message} (HTTP #{e.status})"
 end
 
 # Rescue specific errors
 begin
-  client.properties.find("PR_INVALID")
+  client.libraries.add_rules("LB123", ["RL123"])
 rescue ReactorSDK::ResourceNotFoundError => e
-  puts "Property not found"
+  puts "Library or rule not found"
 rescue ReactorSDK::AuthenticationError => e
   puts "Authentication failed — check your credentials"
 rescue ReactorSDK::AuthorizationError => e
@@ -571,7 +651,7 @@ rescue ReactorSDK::RateLimitError => e
 rescue ReactorSDK::UnprocessableEntityError => e
   puts "Validation failed: #{e.validation_errors.inspect}"
 rescue ReactorSDK::ServerError => e
-  puts "Adobe API server error (#{e.status})"
+  puts "Adobe API server error (HTTP #{e.status})"
 rescue ReactorSDK::ParseError => e
   puts "Could not parse API response"
 end
@@ -638,9 +718,59 @@ class PropertySyncService
 end
 ```
 
+### Full publish workflow example
+```ruby
+# app/services/library_publish_service.rb
+
+class LibraryPublishService
+  POLL_INTERVAL = 30 # seconds
+  MAX_WAIT      = 600 # 10 minutes
+
+  def initialize(library_id:, environment_id:, client: REACTOR_CLIENT)
+    @library_id     = library_id
+    @environment_id = environment_id
+    @client         = client
+  end
+
+  def call
+    assign_environment
+    build = trigger_build
+    wait_for_build(build)
+    publish
+  end
+
+  private
+
+  def assign_environment
+    @client.libraries.assign_environment(@library_id, @environment_id)
+  end
+
+  def trigger_build
+    @client.libraries.build(@library_id)
+  end
+
+  def wait_for_build(build)
+    elapsed = 0
+    loop do
+      build = @client.builds.find(build.id)
+      return if build.succeeded?
+      raise "Build failed" if build.failed?
+      raise "Build timed out after #{MAX_WAIT}s" if elapsed >= MAX_WAIT
+      sleep POLL_INTERVAL
+      elapsed += POLL_INTERVAL
+    end
+  end
+
+  def publish
+    @client.libraries.transition(@library_id, state: "submitted")
+    @client.libraries.transition(@library_id, state: "approved")
+    @client.libraries.transition(@library_id, state: "published")
+  end
+end
+```
+
 ### Credentials setup
 ```bash
-# Add to Rails encrypted credentials
 rails credentials:edit
 ```
 ```yaml
@@ -671,9 +801,9 @@ With documentation output:
 bundle exec rspec --format documentation
 ```
 
-### Running a single spec file
+Run a single spec file:
 ```bash
-bundle exec rspec spec/reactor_sdk/endpoints/properties_spec.rb
+bundle exec rspec spec/reactor_sdk/endpoints/libraries_spec.rb
 ```
 
 ### Running RuboCop
