@@ -11,9 +11,9 @@
 RSpec.describe ReactorSDK::Configuration do
   let(:valid_params) do
     {
-      client_id:     "test_client_id",
+      client_id: "test_client_id",
       client_secret: "test_client_secret",
-      org_id:        "test_org_id"
+      org_id: "test_org_id"
     }
   end
 
@@ -80,27 +80,27 @@ RSpec.describe ReactorSDK::Configuration do
 
     context "with missing required fields" do
       it "raises ConfigurationError when client_id is blank" do
-        expect {
+        expect do
           described_class.new(**valid_params.merge(client_id: ""))
-        }.to raise_error(ReactorSDK::ConfigurationError, /client_id/)
+        end.to raise_error(ReactorSDK::ConfigurationError, /client_id/)
       end
 
       it "raises ConfigurationError when client_secret is blank" do
-        expect {
+        expect do
           described_class.new(**valid_params.merge(client_secret: ""))
-        }.to raise_error(ReactorSDK::ConfigurationError, /client_secret/)
+        end.to raise_error(ReactorSDK::ConfigurationError, /client_secret/)
       end
 
       it "raises ConfigurationError when org_id is blank" do
-        expect {
+        expect do
           described_class.new(**valid_params.merge(org_id: ""))
-        }.to raise_error(ReactorSDK::ConfigurationError, /org_id/)
+        end.to raise_error(ReactorSDK::ConfigurationError, /org_id/)
       end
 
       it "raises ConfigurationError when client_id is nil" do
-        expect {
+        expect do
           described_class.new(**valid_params.merge(client_id: nil))
-        }.to raise_error(ReactorSDK::ConfigurationError, /client_id/)
+        end.to raise_error(ReactorSDK::ConfigurationError, /client_id/)
       end
     end
   end

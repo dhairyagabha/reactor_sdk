@@ -109,10 +109,10 @@ module ReactorSDK
     #
     def token_request_params
       {
-        grant_type:    "client_credentials",
-        client_id:     @config.client_id,
+        grant_type: "client_credentials",
+        client_id: @config.client_id,
         client_secret: @config.client_secret,
-        scope:         REACTOR_SCOPE
+        scope: REACTOR_SCOPE
       }
     end
 

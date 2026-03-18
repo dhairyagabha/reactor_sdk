@@ -54,10 +54,10 @@ module ReactorSDK
         payload = build_payload(
           "data_elements",
           {
-            name:                   name,
+            name: name,
             delegate_descriptor_id: delegate_descriptor_id,
-            settings:               settings,
-            enabled:                enabled
+            settings: settings,
+            enabled: enabled
           }
         )
         response = @connection.post("/properties/#{property_id}/data_elements", payload)

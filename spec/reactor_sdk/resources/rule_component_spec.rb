@@ -16,8 +16,8 @@ RSpec.describe ReactorSDK::Resources::RuleComponent do
   #
   def build_component(attributes = {})
     described_class.new(
-      id:         "RC123",
-      type:       "rule_components",
+      id: "RC123",
+      type: "rule_components",
       attributes: attributes
     )
   end
@@ -27,12 +27,12 @@ RSpec.describe ReactorSDK::Resources::RuleComponent do
   describe "attribute mapping" do
     subject(:component) do
       build_component(
-        "name"                   => "Send Beacon",
+        "name" => "Send Beacon",
         "delegate_descriptor_id" => "adobe-analytics::actions::set-variables",
-        "settings"               => "{}",
-        "order"                  => 1,
-        "created_at"             => "2024-01-01T00:00:00.000Z",
-        "updated_at"             => "2024-01-02T00:00:00.000Z"
+        "settings" => "{}",
+        "order" => 1,
+        "created_at" => "2024-01-01T00:00:00.000Z",
+        "updated_at" => "2024-01-02T00:00:00.000Z"
       )
     end
 
@@ -52,7 +52,7 @@ RSpec.describe ReactorSDK::Resources::RuleComponent do
           "settings" => "{\"source\":\"var x = _satellite.getVar('page_name');\",\"language\":\"javascript\"}"
         )
         expect(component.parsed_settings).to eq(
-          "source"   => "var x = _satellite.getVar('page_name');",
+          "source" => "var x = _satellite.getVar('page_name');",
           "language" => "javascript"
         )
       end
@@ -74,10 +74,10 @@ RSpec.describe ReactorSDK::Resources::RuleComponent do
         xdm_settings = {
           "xdm" => {
             "eventType" => "web.webpagedetails.pageViews",
-            "web"       => {
+            "web" => {
               "webPageDetails" => {
                 "name" => "%page_name%",
-                "URL"  => "%page_url%"
+                "URL" => "%page_url%"
               }
             }
           },
@@ -97,7 +97,7 @@ RSpec.describe ReactorSDK::Resources::RuleComponent do
       it "parses the variable mapping structure correctly" do
         analytics_settings = {
           "trackerProperties" => {
-            "eVars"  => [{ "type" => "value", "value" => "%product%", "name" => "eVar1" }],
+            "eVars" => [{ "type" => "value", "value" => "%product%", "name" => "eVar1" }],
             "events" => [{ "name" => "event1" }]
           },
           "customSetup" => {
@@ -179,7 +179,7 @@ RSpec.describe ReactorSDK::Resources::RuleComponent do
   describe "#inspect" do
     it "includes id, name and delegate_descriptor_id" do
       component = build_component(
-        "name"                   => "Custom Code",
+        "name" => "Custom Code",
         "delegate_descriptor_id" => "core::actions::custom-code"
       )
       expect(component.inspect).to include("RC123")

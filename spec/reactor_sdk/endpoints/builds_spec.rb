@@ -15,7 +15,7 @@ RSpec.describe ReactorSDK::Endpoints::Builds do
 
   let(:succeeded_build_attributes) do
     {
-      "status"     => "succeeded",
+      "status" => "succeeded",
       "created_at" => "2024-01-01T00:00:00.000Z",
       "updated_at" => "2024-01-01T00:00:00.000Z"
     }
@@ -23,7 +23,7 @@ RSpec.describe ReactorSDK::Endpoints::Builds do
 
   let(:pending_build_attributes) do
     {
-      "status"     => "processing",
+      "status" => "processing",
       "created_at" => "2024-01-01T00:00:00.000Z",
       "updated_at" => "2024-01-01T00:00:00.000Z"
     }
@@ -31,7 +31,7 @@ RSpec.describe ReactorSDK::Endpoints::Builds do
 
   let(:failed_build_attributes) do
     {
-      "status"     => "failed",
+      "status" => "failed",
       "created_at" => "2024-01-01T00:00:00.000Z",
       "updated_at" => "2024-01-01T00:00:00.000Z"
     }
@@ -43,7 +43,7 @@ RSpec.describe ReactorSDK::Endpoints::Builds do
         stub_request(:get, "https://reactor.adobe.io/builds/BL123")
           .to_return(
             status: 200,
-            body:   jsonapi_response(type: "builds", id: "BL123", attributes: succeeded_build_attributes).to_json,
+            body: jsonapi_response(type: "builds", id: "BL123", attributes: succeeded_build_attributes).to_json,
             headers: { "Content-Type" => "application/json" }
           )
       end
@@ -71,7 +71,7 @@ RSpec.describe ReactorSDK::Endpoints::Builds do
         stub_request(:get, "https://reactor.adobe.io/builds/BL123")
           .to_return(
             status: 200,
-            body:   jsonapi_response(type: "builds", id: "BL123", attributes: pending_build_attributes).to_json,
+            body: jsonapi_response(type: "builds", id: "BL123", attributes: pending_build_attributes).to_json,
             headers: { "Content-Type" => "application/json" }
           )
       end
@@ -89,7 +89,7 @@ RSpec.describe ReactorSDK::Endpoints::Builds do
         stub_request(:get, "https://reactor.adobe.io/builds/BL123")
           .to_return(
             status: 200,
-            body:   jsonapi_response(type: "builds", id: "BL123", attributes: failed_build_attributes).to_json,
+            body: jsonapi_response(type: "builds", id: "BL123", attributes: failed_build_attributes).to_json,
             headers: { "Content-Type" => "application/json" }
           )
       end
@@ -109,9 +109,9 @@ RSpec.describe ReactorSDK::Endpoints::Builds do
       end
 
       it "raises ResourceNotFoundError" do
-        expect {
+        expect do
           client.builds.find("BL_INVALID")
-        }.to raise_error(ReactorSDK::ResourceNotFoundError)
+        end.to raise_error(ReactorSDK::ResourceNotFoundError)
       end
     end
   end
@@ -121,8 +121,8 @@ RSpec.describe ReactorSDK::Endpoints::Builds do
       stub_request(:get, "https://reactor.adobe.io/libraries/LB123/builds?page%5Bsize%5D=100")
         .to_return(
           status: 200,
-          body:   jsonapi_list_response(
-            type:  "builds",
+          body: jsonapi_list_response(
+            type: "builds",
             items: [
               { id: "BL123", attributes: succeeded_build_attributes },
               { id: "BL456", attributes: failed_build_attributes }

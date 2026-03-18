@@ -13,26 +13,26 @@ RSpec.describe ReactorSDK::Endpoints::Rules do
 
   let(:rule_attributes) do
     {
-      "name"         => "Order Confirmation",
-      "enabled"      => true,
-      "created_at"   => "2024-01-01T00:00:00.000Z",
-      "updated_at"   => "2024-01-01T00:00:00.000Z",
+      "name" => "Order Confirmation",
+      "enabled" => true,
+      "created_at" => "2024-01-01T00:00:00.000Z",
+      "updated_at" => "2024-01-01T00:00:00.000Z",
       "published_at" => nil,
-      "revised_at"   => nil
+      "revised_at" => nil
     }
   end
 
   let(:single_response) do
     jsonapi_response(
-      type:       "rules",
-      id:         "RL123",
+      type: "rules",
+      id: "RL123",
       attributes: rule_attributes
     ).to_json
   end
 
   let(:list_response) do
     jsonapi_list_response(
-      type:  "rules",
+      type: "rules",
       items: [
         { id: "RL123", attributes: rule_attributes },
         { id: "RL456", attributes: rule_attributes.merge("name" => "Add to Cart") }
@@ -64,7 +64,7 @@ RSpec.describe ReactorSDK::Endpoints::Rules do
 
     it "returns the correct ids" do
       result = client.rules.list_for_property("PR123")
-      expect(result.map(&:id)).to eq(["RL123", "RL456"])
+      expect(result.map(&:id)).to eq(%w[RL123 RL456])
     end
   end
 
@@ -97,9 +97,9 @@ RSpec.describe ReactorSDK::Endpoints::Rules do
       end
 
       it "raises ResourceNotFoundError" do
-        expect {
+        expect do
           client.rules.find("RL_INVALID")
-        }.to raise_error(ReactorSDK::ResourceNotFoundError)
+        end.to raise_error(ReactorSDK::ResourceNotFoundError)
       end
     end
   end
@@ -126,14 +126,14 @@ RSpec.describe ReactorSDK::Endpoints::Rules do
         stub_request(:post, "https://reactor.adobe.io/properties/PR123/rules")
           .to_return(
             status: 422,
-            body:   { errors: [{ detail: "Name can't be blank" }] }.to_json
+            body: { errors: [{ detail: "Name can't be blank" }] }.to_json
           )
       end
 
       it "raises UnprocessableEntityError" do
-        expect {
+        expect do
           client.rules.create(property_id: "PR123", name: "")
-        }.to raise_error(ReactorSDK::UnprocessableEntityError)
+        end.to raise_error(ReactorSDK::UnprocessableEntityError)
       end
     end
   end
@@ -143,9 +143,9 @@ RSpec.describe ReactorSDK::Endpoints::Rules do
       stub_request(:patch, "https://reactor.adobe.io/rules/RL123")
         .to_return(
           status: 200,
-          body:   jsonapi_response(
-            type:       "rules",
-            id:         "RL123",
+          body: jsonapi_response(
+            type: "rules",
+            id: "RL123",
             attributes: rule_attributes.merge("name" => "Updated Rule Name")
           ).to_json,
           headers: { "Content-Type" => "application/json" }

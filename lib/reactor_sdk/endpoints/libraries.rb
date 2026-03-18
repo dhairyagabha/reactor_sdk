@@ -8,16 +8,20 @@
 #   deployable bundle. They move through a state machine:
 #   development -> submitted -> approved -> rejected -> published.
 #
-#   Key operations for LaunchGuard:
-#   - create              creates a new library in a property
-#   - add_resources       associates rules/data elements/extensions
-#   - build               triggers a build (compiles the bundle)
-#   - transition          moves the library through its state machine
-#   - find_with_resources fetches library with all included resources
-#                         and their current revision IDs attached
-#   - upstream_libraries  returns ordered list of libraries upstream
-#                         of a given library in the environment chain
-#                         (Development → Staging → Production)
+#   Resource management methods follow JSON:API relationship semantics:
+#
+#     add_*    POST   /libraries/:id/relationships/:type
+#              Adds the specified resources — existing resources are kept.
+#              Use for incremental additions.
+#
+#     remove_* DELETE /libraries/:id/relationships/:type
+#              Removes only the specified resources — others are kept.
+#              Use for targeted removals.
+#
+#     set_*    PATCH  /libraries/:id/relationships/:type
+#              Replaces the ENTIRE list with exactly what you send.
+#              Anything not included is removed. Use with caution —
+#              passing an empty array removes all resources of that type.
 #
 # @domain Endpoints
 # @see https://developer.adobe.com/experience-platform/documentation/tags/api/endpoints/libraries/
@@ -26,10 +30,11 @@
 module ReactorSDK
   module Endpoints
     class Libraries < BaseEndpoint
-
       # Adobe Launch environment stages in upstream order.
       # Development is at the bottom — Production is at the top.
       UPSTREAM_STAGE_ORDER = %w[development staging production].freeze
+
+      # ── List and find ───────────────────────────────────────────
 
       ##
       # Lists all libraries for a given property.
@@ -69,10 +74,6 @@ module ReactorSDK
       #   - rules, data_elements, extensions arrays with revision_id attached
       #   - resource_index for quick revision ID lookup by resource ID
       #
-      # This is the primary method for gathering data needed for upstream
-      # resolution — call it on both the source and target library, then
-      # compare their resource_index hashes to find what changed.
-      #
       # @param library_id [String] Adobe library ID
       # @return [ReactorSDK::Resources::LibraryWithResources]
       # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
@@ -82,9 +83,231 @@ module ReactorSDK
           "/libraries/#{library_id}",
           params: { "include" => "rules,data_elements,extensions" }
         )
-
         build_library_with_resources(response)
       end
+
+      # ── Create ──────────────────────────────────────────────────
+
+      ##
+      # Creates a new library within a property.
+      #
+      # @param property_id [String] Adobe property ID
+      # @param name        [String] Display name for the library
+      # @return [ReactorSDK::Resources::Library] The newly created library
+      # @raise [ReactorSDK::UnprocessableEntityError] if attributes are invalid
+      #
+      def create(property_id:, name:)
+        payload  = build_payload("libraries", { name: name })
+        response = @connection.post("/properties/#{property_id}/libraries", payload)
+        @parser.parse(response["data"], Resources::Library)
+      end
+
+      # ── Rules relationship management ───────────────────────────
+
+      ##
+      # Adds rules to a library.
+      # Existing rules in the library are preserved — only the specified
+      # rules are added.
+      #
+      # @param library_id [String]        Adobe library ID
+      # @param rule_ids   [Array<String>] Adobe rule IDs to add
+      # @return [nil]
+      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
+      #
+      def add_rules(library_id, rule_ids)
+        payload = build_relationship_payload("rules", rule_ids)
+        @connection.post("/libraries/#{library_id}/relationships/rules", payload)
+        nil
+      end
+
+      ##
+      # Removes specific rules from a library.
+      # Only the specified rules are removed — other rules are preserved.
+      #
+      # @param library_id [String]        Adobe library ID
+      # @param rule_ids   [Array<String>] Adobe rule IDs to remove
+      # @return [nil]
+      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
+      #
+      def remove_rules(library_id, rule_ids)
+        payload = build_relationship_payload("rules", rule_ids)
+        @connection.delete_relationship("/libraries/#{library_id}/relationships/rules", payload)
+        nil
+      end
+
+      ##
+      # Replaces the entire rules list for a library.
+      # Any rule currently in the library that is NOT in rule_ids is removed.
+      # Passing an empty array removes all rules from the library.
+      #
+      # Use with caution — this is a destructive operation.
+      # Prefer add_rules and remove_rules for incremental changes.
+      #
+      # @param library_id [String]        Adobe library ID
+      # @param rule_ids   [Array<String>] Complete new list of Adobe rule IDs
+      # @return [nil]
+      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
+      #
+      def set_rules(library_id, rule_ids)
+        payload = build_relationship_payload("rules", rule_ids)
+        @connection.patch("/libraries/#{library_id}/relationships/rules", payload)
+        nil
+      end
+
+      # ── Data elements relationship management ───────────────────
+
+      ##
+      # Adds data elements to a library.
+      # Existing data elements in the library are preserved.
+      #
+      # @param library_id       [String]        Adobe library ID
+      # @param data_element_ids [Array<String>] Adobe data element IDs to add
+      # @return [nil]
+      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
+      #
+      def add_data_elements(library_id, data_element_ids)
+        payload = build_relationship_payload("data_elements", data_element_ids)
+        @connection.post("/libraries/#{library_id}/relationships/data_elements", payload)
+        nil
+      end
+
+      ##
+      # Removes specific data elements from a library.
+      # Only the specified data elements are removed — others are preserved.
+      #
+      # @param library_id       [String]        Adobe library ID
+      # @param data_element_ids [Array<String>] Adobe data element IDs to remove
+      # @return [nil]
+      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
+      #
+      def remove_data_elements(library_id, data_element_ids)
+        payload = build_relationship_payload("data_elements", data_element_ids)
+        @connection.delete_relationship("/libraries/#{library_id}/relationships/data_elements", payload)
+        nil
+      end
+
+      ##
+      # Replaces the entire data elements list for a library.
+      # Any data element currently in the library that is NOT in
+      # data_element_ids is removed.
+      # Passing an empty array removes all data elements from the library.
+      #
+      # Use with caution — this is a destructive operation.
+      #
+      # @param library_id       [String]        Adobe library ID
+      # @param data_element_ids [Array<String>] Complete new list of data element IDs
+      # @return [nil]
+      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
+      #
+      def set_data_elements(library_id, data_element_ids)
+        payload = build_relationship_payload("data_elements", data_element_ids)
+        @connection.patch("/libraries/#{library_id}/relationships/data_elements", payload)
+        nil
+      end
+
+      # ── Extensions relationship management ──────────────────────
+
+      ##
+      # Adds extensions to a library.
+      # Existing extensions in the library are preserved.
+      #
+      # @param library_id    [String]        Adobe library ID
+      # @param extension_ids [Array<String>] Adobe extension IDs to add
+      # @return [nil]
+      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
+      #
+      def add_extensions(library_id, extension_ids)
+        payload = build_relationship_payload("extensions", extension_ids)
+        @connection.post("/libraries/#{library_id}/relationships/extensions", payload)
+        nil
+      end
+
+      ##
+      # Removes specific extensions from a library.
+      # Only the specified extensions are removed — others are preserved.
+      #
+      # @param library_id    [String]        Adobe library ID
+      # @param extension_ids [Array<String>] Adobe extension IDs to remove
+      # @return [nil]
+      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
+      #
+      def remove_extensions(library_id, extension_ids)
+        payload = build_relationship_payload("extensions", extension_ids)
+        @connection.delete_relationship("/libraries/#{library_id}/relationships/extensions", payload)
+        nil
+      end
+
+      ##
+      # Replaces the entire extensions list for a library.
+      # Any extension currently in the library that is NOT in extension_ids
+      # is removed. Passing an empty array removes all extensions.
+      #
+      # Use with caution — this is a destructive operation.
+      #
+      # @param library_id    [String]        Adobe library ID
+      # @param extension_ids [Array<String>] Complete new list of extension IDs
+      # @return [nil]
+      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
+      #
+      def set_extensions(library_id, extension_ids)
+        payload = build_relationship_payload("extensions", extension_ids)
+        @connection.patch("/libraries/#{library_id}/relationships/extensions", payload)
+        nil
+      end
+
+      # ── Environment assignment ──────────────────────────────────
+
+      ##
+      # Assigns an environment to a library.
+      # A library must have an environment assigned before it can be built.
+      #
+      # @param library_id     [String] Adobe library ID
+      # @param environment_id [String] Adobe environment ID to assign
+      # @return [nil]
+      # @raise [ReactorSDK::ResourceNotFoundError] if either resource does not exist
+      #
+      def assign_environment(library_id, environment_id)
+        payload = { data: { id: environment_id, type: "environments" } }
+        @connection.patch("/libraries/#{library_id}/relationships/environment", payload)
+        nil
+      end
+
+      # ── State machine ───────────────────────────────────────────
+
+      ##
+      # Transitions a library to a new state in its workflow.
+      #
+      # Valid transitions:
+      #   development -> submitted -> approved -> published
+      #                           -> rejected -> development
+      #
+      # @param library_id [String] Adobe library ID
+      # @param state      [String] Target state to transition to
+      # @return [ReactorSDK::Resources::Library] The updated library
+      # @raise [ReactorSDK::UnprocessableEntityError] if the transition is invalid
+      #
+      def transition(library_id, state:)
+        payload  = build_payload("libraries", { state: state }, id: library_id)
+        response = @connection.patch("/libraries/#{library_id}", payload)
+        @parser.parse(response["data"], Resources::Library)
+      end
+
+      # ── Build ───────────────────────────────────────────────────
+
+      ##
+      # Triggers a build for a library.
+      # The library must be in "development" state and have an environment assigned.
+      #
+      # @param library_id [String] Adobe library ID
+      # @return [ReactorSDK::Resources::Build] The triggered build
+      # @raise [ReactorSDK::UnprocessableEntityError] if the library cannot be built
+      #
+      def build(library_id)
+        response = @connection.post("/libraries/#{library_id}/builds", {})
+        @parser.parse(response["data"], Resources::Build)
+      end
+
+      # ── Upstream resolution ─────────────────────────────────────
 
       ##
       # Returns the ordered list of libraries upstream of the given library.
@@ -101,16 +324,13 @@ module ReactorSDK
       #   Target is Staging     → returns [production_library]
       #   Target is Production  → returns [] (nothing upstream)
       #
-      # Fetches all libraries for the property and filters by environment stage.
-      # Returns them in upstream order — nearest first, Production last.
-      #
       # @param library_id  [String] Adobe library ID of the target library
       # @param property_id [String] Adobe property ID
       # @return [Array<ReactorSDK::Resources::Library>] Upstream libraries, nearest first
       # @raise [ReactorSDK::ResourceNotFoundError] if either resource does not exist
       #
       def upstream_libraries(library_id, property_id:)
-        target   = find(library_id)
+        find(library_id)
         target_stage = fetch_library_stage(library_id)
 
         return [] if target_stage.nil?
@@ -126,114 +346,11 @@ module ReactorSDK
         end
       end
 
-      ##
-      # Creates a new library within a property.
-      #
-      # @param property_id [String] Adobe property ID
-      # @param name        [String] Display name for the library
-      # @return [ReactorSDK::Resources::Library] The newly created library
-      # @raise [ReactorSDK::UnprocessableEntityError] if attributes are invalid
-      #
-      def create(property_id:, name:)
-        payload  = build_payload("libraries", { name: name })
-        response = @connection.post("/properties/#{property_id}/libraries", payload)
-        @parser.parse(response["data"], Resources::Library)
-      end
-
-      ##
-      # Adds rules to a library by relationship.
-      #
-      # @param library_id [String]        Adobe library ID
-      # @param rule_ids   [Array<String>] Adobe rule IDs to add
-      # @return [nil]
-      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
-      #
-      def add_rules(library_id, rule_ids)
-        payload = build_relationship_payload("rules", rule_ids)
-        @connection.post("/libraries/#{library_id}/relationships/rules", payload)
-        nil
-      end
-
-      ##
-      # Adds data elements to a library by relationship.
-      #
-      # @param library_id       [String]        Adobe library ID
-      # @param data_element_ids [Array<String>] Adobe data element IDs to add
-      # @return [nil]
-      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
-      #
-      def add_data_elements(library_id, data_element_ids)
-        payload = build_relationship_payload("data_elements", data_element_ids)
-        @connection.post("/libraries/#{library_id}/relationships/data_elements", payload)
-        nil
-      end
-
-      ##
-      # Adds extensions to a library by relationship.
-      #
-      # @param library_id    [String]        Adobe library ID
-      # @param extension_ids [Array<String>] Adobe extension IDs to add
-      # @return [nil]
-      # @raise [ReactorSDK::ResourceNotFoundError] if the library does not exist
-      #
-      def add_extensions(library_id, extension_ids)
-        payload = build_relationship_payload("extensions", extension_ids)
-        @connection.post("/libraries/#{library_id}/relationships/extensions", payload)
-        nil
-      end
-
-      ##
-      # Assigns an environment to a library.
-      #
-      # @param library_id     [String] Adobe library ID
-      # @param environment_id [String] Adobe environment ID to assign
-      # @return [nil]
-      # @raise [ReactorSDK::ResourceNotFoundError] if either resource does not exist
-      #
-      def assign_environment(library_id, environment_id)
-        payload = { data: { id: environment_id, type: "environments" } }
-        @connection.patch("/libraries/#{library_id}/relationships/environment", payload)
-        nil
-      end
-
-      ##
-      # Transitions a library to a new state in its workflow.
-      #
-      # State machine:
-      #   development -> submitted -> approved -> published
-      #                           -> rejected -> development
-      #
-      # @param library_id [String] Adobe library ID
-      # @param state      [String] Target state to transition to
-      # @return [ReactorSDK::Resources::Library] The updated library
-      # @raise [ReactorSDK::UnprocessableEntityError] if the transition is invalid
-      #
-      def transition(library_id, state:)
-        payload  = build_payload("libraries", { state: state }, id: library_id)
-        response = @connection.patch("/libraries/#{library_id}", payload)
-        @parser.parse(response["data"], Resources::Library)
-      end
-
-      ##
-      # Triggers a build for a library.
-      #
-      # @param library_id [String] Adobe library ID
-      # @return [ReactorSDK::Resources::Build] The triggered build
-      # @raise [ReactorSDK::UnprocessableEntityError] if the library cannot be built
-      #
-      def build(library_id)
-        response = @connection.post("/libraries/#{library_id}/builds", {})
-        @parser.parse(response["data"], Resources::Build)
-      end
-
       private
 
       ##
       # Builds a LibraryWithResources from a full API response that includes
       # rules, data_elements, and extensions in the included array.
-      #
-      # Groups the included array by resource type and passes each group
-      # to LibraryWithResources for typed resource construction.
       #
       # @param response [Hash] Full JSON:API response from the API
       # @return [ReactorSDK::Resources::LibraryWithResources]
@@ -245,14 +362,14 @@ module ReactorSDK
         included_by_type = included.group_by { |r| r["type"] }
 
         Resources::LibraryWithResources.new(
-          id:                 data.fetch("id"),
-          type:               data.fetch("type"),
-          attributes:         data.fetch("attributes", {}),
-          meta:               data.fetch("meta", {}),
+          id: data.fetch("id"),
+          type: data.fetch("type"),
+          attributes: data.fetch("attributes", {}),
+          meta: data.fetch("meta", {}),
           included_resources: {
-            "rules"         => included_by_type.fetch("rules",         []),
+            "rules" => included_by_type.fetch("rules", []),
             "data_elements" => included_by_type.fetch("data_elements", []),
-            "extensions"    => included_by_type.fetch("extensions",    [])
+            "extensions" => included_by_type.fetch("extensions", [])
           }
         )
       end
@@ -261,15 +378,12 @@ module ReactorSDK
       # Fetches the environment stage for a library by following its
       # environment relationship.
       #
-      # Calls GET /libraries/:id/relationships/environment to get the
-      # environment ID, then GET /environments/:id to get the stage.
-      #
       # @param library_id [String] Adobe library ID
       # @return [String, nil] Stage ("development", "staging", "production") or nil
       #
       def fetch_library_stage(library_id)
-        env_rel  = @connection.get("/libraries/#{library_id}/relationships/environment")
-        env_id   = env_rel&.dig("data", "id")
+        env_rel = @connection.get("/libraries/#{library_id}/relationships/environment")
+        env_id  = env_rel&.dig("data", "id")
         return nil unless env_id
 
         env_response = @connection.get("/environments/#{env_id}")
@@ -277,8 +391,7 @@ module ReactorSDK
       end
 
       ##
-      # Returns the stages that are upstream of the given stage.
-      # Ordered nearest-first (e.g. development → [staging, production]).
+      # Returns the stages upstream of the given stage, nearest first.
       #
       # @param stage [String] Current stage
       # @return [Array<String>] Upstream stages in order

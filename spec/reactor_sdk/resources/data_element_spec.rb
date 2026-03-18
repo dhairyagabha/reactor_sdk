@@ -15,8 +15,8 @@ RSpec.describe ReactorSDK::Resources::DataElement do
   #
   def build_element(attributes = {})
     described_class.new(
-      id:         "DE123",
-      type:       "data_elements",
+      id: "DE123",
+      type: "data_elements",
       attributes: attributes
     )
   end
@@ -26,16 +26,16 @@ RSpec.describe ReactorSDK::Resources::DataElement do
   describe "attribute mapping" do
     subject(:element) do
       build_element(
-        "name"                   => "Page Name",
+        "name" => "Page Name",
         "delegate_descriptor_id" => "core::dataElements::custom-code",
-        "enabled"                => true,
-        "clean_text"             => false,
-        "force_lower_case"       => false,
-        "default_value"          => "unknown",
-        "storage_duration"       => "pageview",
-        "settings"               => "{}",
-        "created_at"             => "2024-01-01T00:00:00.000Z",
-        "updated_at"             => "2024-01-02T00:00:00.000Z"
+        "enabled" => true,
+        "clean_text" => false,
+        "force_lower_case" => false,
+        "default_value" => "unknown",
+        "storage_duration" => "pageview",
+        "settings" => "{}",
+        "created_at" => "2024-01-01T00:00:00.000Z",
+        "updated_at" => "2024-01-02T00:00:00.000Z"
       )
     end
 
@@ -59,7 +59,7 @@ RSpec.describe ReactorSDK::Resources::DataElement do
           "settings" => "{\"source\":\"return digitalData.page.pageInfo.pageName;\",\"language\":\"javascript\"}"
         )
         expect(element.parsed_settings).to eq(
-          "source"   => "return digitalData.page.pageInfo.pageName;",
+          "source" => "return digitalData.page.pageInfo.pageName;",
           "language" => "javascript"
         )
       end
@@ -112,7 +112,7 @@ RSpec.describe ReactorSDK::Resources::DataElement do
 
     context "with a large custom code block" do
       it "parses without truncation" do
-        large_code = "return '#{("x" * 100)}';\n" * 200
+        large_code = "return '#{"x" * 100}';\n" * 200
         element    = build_element(
           "settings" => JSON.generate({ "source" => large_code, "language" => "javascript" })
         )
@@ -135,7 +135,7 @@ RSpec.describe ReactorSDK::Resources::DataElement do
   describe "#inspect" do
     it "includes id, name and delegate_descriptor_id" do
       element = build_element(
-        "name"                   => "Page Name",
+        "name" => "Page Name",
         "delegate_descriptor_id" => "core::dataElements::custom-code"
       )
       expect(element.inspect).to include("DE123")

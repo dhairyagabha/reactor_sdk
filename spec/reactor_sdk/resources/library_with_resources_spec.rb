@@ -17,8 +17,8 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
   #
   def raw_resource(id:, type:, attributes: {}, revision_id: nil)
     hash = {
-      "id"         => id,
-      "type"       => type,
+      "id" => id,
+      "type" => type,
       "attributes" => attributes
     }
     if revision_id
@@ -34,16 +34,16 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
   #
   def build_library(included_resources: {})
     described_class.new(
-      id:                  "LB123",
-      type:                "libraries",
-      attributes:          {
-        "name"       => "Release 1.0",
-        "state"      => "development",
-        "published"  => false,
+      id: "LB123",
+      type: "libraries",
+      attributes: {
+        "name" => "Release 1.0",
+        "state" => "development",
+        "published" => false,
         "created_at" => "2024-01-01T00:00:00.000Z",
         "updated_at" => "2024-01-02T00:00:00.000Z"
       },
-      included_resources:  included_resources
+      included_resources: included_resources
     )
   end
 
@@ -95,15 +95,15 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
     context "with rules in the included array" do
       let(:library) do
         build_library(included_resources: {
-          "rules" => [
-            raw_resource(id: "RL123", type: "rules",
-                         attributes: { "name" => "Order Confirmation", "enabled" => true },
-                         revision_id: "RE001"),
-            raw_resource(id: "RL456", type: "rules",
-                         attributes: { "name" => "Add to Cart", "enabled" => false },
-                         revision_id: "RE002")
-          ]
-        })
+                        "rules" => [
+                          raw_resource(id: "RL123", type: "rules",
+                                       attributes: { "name" => "Order Confirmation", "enabled" => true },
+                                       revision_id: "RE001"),
+                          raw_resource(id: "RL456", type: "rules",
+                                       attributes: { "name" => "Add to Cart", "enabled" => false },
+                                       revision_id: "RE002")
+                        ]
+                      })
       end
 
       it "returns an array of Rule resources" do
@@ -125,7 +125,7 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
       end
 
       it "returns correct rule ids" do
-        expect(library.rules.map(&:id)).to eq(["RL123", "RL456"])
+        expect(library.rules.map(&:id)).to eq(%w[RL123 RL456])
       end
     end
 
@@ -138,11 +138,11 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
     context "when a rule has no revision relationship" do
       it "returns nil for revision_id" do
         library = build_library(included_resources: {
-          "rules" => [
-            raw_resource(id: "RL123", type: "rules",
-                         attributes: { "name" => "No Revision Rule" })
-          ]
-        })
+                                  "rules" => [
+                                    raw_resource(id: "RL123", type: "rules",
+                                                 attributes: { "name" => "No Revision Rule" })
+                                  ]
+                                })
         expect(library.rules.first.revision_id).to be_nil
       end
     end
@@ -154,12 +154,12 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
     context "with data elements in the included array" do
       let(:library) do
         build_library(included_resources: {
-          "data_elements" => [
-            raw_resource(id: "DE123", type: "data_elements",
-                         attributes: { "name" => "Page Name" },
-                         revision_id: "RE010")
-          ]
-        })
+                        "data_elements" => [
+                          raw_resource(id: "DE123", type: "data_elements",
+                                       attributes: { "name" => "Page Name" },
+                                       revision_id: "RE010")
+                        ]
+                      })
       end
 
       it "returns an array of DataElement resources" do
@@ -188,12 +188,12 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
     context "with extensions in the included array" do
       let(:library) do
         build_library(included_resources: {
-          "extensions" => [
-            raw_resource(id: "EX123", type: "extensions",
-                         attributes: { "name" => "Adobe Analytics" },
-                         revision_id: "RE020")
-          ]
-        })
+                        "extensions" => [
+                          raw_resource(id: "EX123", type: "extensions",
+                                       attributes: { "name" => "Adobe Analytics" },
+                                       revision_id: "RE020")
+                        ]
+                      })
       end
 
       it "returns an array of Extension resources" do
@@ -222,21 +222,21 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
     context "with rules, data elements, and extensions" do
       let(:library) do
         build_library(included_resources: {
-          "rules" => [
-            raw_resource(id: "RL123", type: "rules",
-                         attributes: {}, revision_id: "RE001"),
-            raw_resource(id: "RL456", type: "rules",
-                         attributes: {}, revision_id: "RE002")
-          ],
-          "data_elements" => [
-            raw_resource(id: "DE123", type: "data_elements",
-                         attributes: {}, revision_id: "RE010")
-          ],
-          "extensions" => [
-            raw_resource(id: "EX123", type: "extensions",
-                         attributes: {}, revision_id: "RE020")
-          ]
-        })
+                        "rules" => [
+                          raw_resource(id: "RL123", type: "rules",
+                                       attributes: {}, revision_id: "RE001"),
+                          raw_resource(id: "RL456", type: "rules",
+                                       attributes: {}, revision_id: "RE002")
+                        ],
+                        "data_elements" => [
+                          raw_resource(id: "DE123", type: "data_elements",
+                                       attributes: {}, revision_id: "RE010")
+                        ],
+                        "extensions" => [
+                          raw_resource(id: "EX123", type: "extensions",
+                                       attributes: {}, revision_id: "RE020")
+                        ]
+                      })
       end
 
       it "returns a Hash keyed by resource ID with revision ID values" do
@@ -255,11 +255,11 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
     context "when a resource has no revision_id" do
       it "excludes that resource from the index" do
         library = build_library(included_resources: {
-          "rules" => [
-            raw_resource(id: "RL123", type: "rules", attributes: {}, revision_id: "RE001"),
-            raw_resource(id: "RL456", type: "rules", attributes: {})
-          ]
-        })
+                                  "rules" => [
+                                    raw_resource(id: "RL123", type: "rules", attributes: {}, revision_id: "RE001"),
+                                    raw_resource(id: "RL456", type: "rules", attributes: {})
+                                  ]
+                                })
         index = library.resource_index
         expect(index.key?("RL123")).to be(true)
         expect(index.key?("RL456")).to be(false)
@@ -278,10 +278,10 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
   describe "#all_resources" do
     it "returns all resource types as a flat array" do
       library = build_library(included_resources: {
-        "rules"         => [raw_resource(id: "RL1", type: "rules", attributes: {})],
-        "data_elements" => [raw_resource(id: "DE1", type: "data_elements", attributes: {})],
-        "extensions"    => [raw_resource(id: "EX1", type: "extensions", attributes: {})]
-      })
+                                "rules" => [raw_resource(id: "RL1", type: "rules", attributes: {})],
+                                "data_elements" => [raw_resource(id: "DE1", type: "data_elements", attributes: {})],
+                                "extensions" => [raw_resource(id: "EX1", type: "extensions", attributes: {})]
+                              })
       expect(library.all_resources.length).to eq(3)
       expect(library.all_resources.map(&:id)).to contain_exactly("RL1", "DE1", "EX1")
     end
@@ -296,10 +296,10 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
   describe "#inspect" do
     it "includes id, name, state and resource counts" do
       library = build_library(included_resources: {
-        "rules"         => [raw_resource(id: "RL1", type: "rules", attributes: {})],
-        "data_elements" => [],
-        "extensions"    => [raw_resource(id: "EX1", type: "extensions", attributes: {})]
-      })
+                                "rules" => [raw_resource(id: "RL1", type: "rules", attributes: {})],
+                                "data_elements" => [],
+                                "extensions" => [raw_resource(id: "EX1", type: "extensions", attributes: {})]
+                              })
       expect(library.inspect).to include("LB123")
       expect(library.inspect).to include("Release 1.0")
       expect(library.inspect).to include("development")

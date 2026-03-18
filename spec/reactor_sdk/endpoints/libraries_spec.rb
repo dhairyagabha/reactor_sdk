@@ -4,8 +4,8 @@
 # @file spec/reactor_sdk/endpoints/libraries_spec.rb
 # @description Tests for ReactorSDK::Endpoints::Libraries.
 #
-#   Covers: list, find, create, add_rules, add_data_elements,
-#   add_extensions, assign_environment, transition, build,
+#   Covers: list, find, create, add/remove/set for rules/data_elements/
+#   extensions, assign_environment, transition, build,
 #   find_with_resources, upstream_libraries, and error handling.
 #
 
@@ -147,7 +147,7 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
   end
 
-  # ── add_rules ─────────────────────────────────────────────────
+  # ── Rules relationship management ─────────────────────────────
 
   describe "#add_rules" do
     before do
@@ -156,8 +156,7 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
 
     it "returns nil on success" do
-      result = client.libraries.add_rules("LB123", ["RL123", "RL456"])
-      expect(result).to be_nil
+      expect(client.libraries.add_rules("LB123", ["RL123", "RL456"])).to be_nil
     end
 
     it "sends the correct relationship payload" do
@@ -167,7 +166,53 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
   end
 
-  # ── add_data_elements ─────────────────────────────────────────
+  describe "#remove_rules" do
+    before do
+      stub_request(:delete, "https://reactor.adobe.io/libraries/LB123/relationships/rules")
+        .to_return(status: 204, body: "")
+    end
+
+    it "returns nil on success" do
+      expect(client.libraries.remove_rules("LB123", ["RL123"])).to be_nil
+    end
+
+    it "sends the correct relationship payload" do
+      client.libraries.remove_rules("LB123", ["RL123"])
+      expect(WebMock).to have_requested(:delete, "https://reactor.adobe.io/libraries/LB123/relationships/rules")
+        .with(body: { data: [{ id: "RL123", type: "rules" }] }.to_json)
+    end
+
+    it "supports removing multiple rules at once" do
+      client.libraries.remove_rules("LB123", ["RL123", "RL456"])
+      expect(WebMock).to have_requested(:delete, "https://reactor.adobe.io/libraries/LB123/relationships/rules")
+        .with(body: { data: [{ id: "RL123", type: "rules" }, { id: "RL456", type: "rules" }] }.to_json)
+    end
+  end
+
+  describe "#set_rules" do
+    before do
+      stub_request(:patch, "https://reactor.adobe.io/libraries/LB123/relationships/rules")
+        .to_return(status: 204, body: "")
+    end
+
+    it "returns nil on success" do
+      expect(client.libraries.set_rules("LB123", ["RL456"])).to be_nil
+    end
+
+    it "sends the complete replacement payload" do
+      client.libraries.set_rules("LB123", ["RL456"])
+      expect(WebMock).to have_requested(:patch, "https://reactor.adobe.io/libraries/LB123/relationships/rules")
+        .with(body: { data: [{ id: "RL456", type: "rules" }] }.to_json)
+    end
+
+    it "supports setting an empty list to remove all rules" do
+      client.libraries.set_rules("LB123", [])
+      expect(WebMock).to have_requested(:patch, "https://reactor.adobe.io/libraries/LB123/relationships/rules")
+        .with(body: { data: [] }.to_json)
+    end
+  end
+
+  # ── Data elements relationship management ─────────────────────
 
   describe "#add_data_elements" do
     before do
@@ -176,8 +221,7 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
 
     it "returns nil on success" do
-      result = client.libraries.add_data_elements("LB123", ["DE123"])
-      expect(result).to be_nil
+      expect(client.libraries.add_data_elements("LB123", ["DE123"])).to be_nil
     end
 
     it "sends the correct relationship payload" do
@@ -187,7 +231,53 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
   end
 
-  # ── add_extensions ────────────────────────────────────────────
+  describe "#remove_data_elements" do
+    before do
+      stub_request(:delete, "https://reactor.adobe.io/libraries/LB123/relationships/data_elements")
+        .to_return(status: 204, body: "")
+    end
+
+    it "returns nil on success" do
+      expect(client.libraries.remove_data_elements("LB123", ["DE123"])).to be_nil
+    end
+
+    it "sends the correct relationship payload" do
+      client.libraries.remove_data_elements("LB123", ["DE123"])
+      expect(WebMock).to have_requested(:delete, "https://reactor.adobe.io/libraries/LB123/relationships/data_elements")
+        .with(body: { data: [{ id: "DE123", type: "data_elements" }] }.to_json)
+    end
+
+    it "supports removing multiple data elements at once" do
+      client.libraries.remove_data_elements("LB123", ["DE123", "DE456"])
+      expect(WebMock).to have_requested(:delete, "https://reactor.adobe.io/libraries/LB123/relationships/data_elements")
+        .with(body: { data: [{ id: "DE123", type: "data_elements" }, { id: "DE456", type: "data_elements" }] }.to_json)
+    end
+  end
+
+  describe "#set_data_elements" do
+    before do
+      stub_request(:patch, "https://reactor.adobe.io/libraries/LB123/relationships/data_elements")
+        .to_return(status: 204, body: "")
+    end
+
+    it "returns nil on success" do
+      expect(client.libraries.set_data_elements("LB123", ["DE456"])).to be_nil
+    end
+
+    it "sends the complete replacement payload" do
+      client.libraries.set_data_elements("LB123", ["DE456"])
+      expect(WebMock).to have_requested(:patch, "https://reactor.adobe.io/libraries/LB123/relationships/data_elements")
+        .with(body: { data: [{ id: "DE456", type: "data_elements" }] }.to_json)
+    end
+
+    it "supports setting an empty list to remove all data elements" do
+      client.libraries.set_data_elements("LB123", [])
+      expect(WebMock).to have_requested(:patch, "https://reactor.adobe.io/libraries/LB123/relationships/data_elements")
+        .with(body: { data: [] }.to_json)
+    end
+  end
+
+  # ── Extensions relationship management ────────────────────────
 
   describe "#add_extensions" do
     before do
@@ -196,14 +286,59 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
 
     it "returns nil on success" do
-      result = client.libraries.add_extensions("LB123", ["EX123"])
-      expect(result).to be_nil
+      expect(client.libraries.add_extensions("LB123", ["EX123"])).to be_nil
     end
 
     it "sends the correct relationship payload" do
       client.libraries.add_extensions("LB123", ["EX123"])
       expect(WebMock).to have_requested(:post, "https://reactor.adobe.io/libraries/LB123/relationships/extensions")
         .with(body: { data: [{ id: "EX123", type: "extensions" }] }.to_json)
+    end
+  end
+
+  describe "#remove_extensions" do
+    before do
+      stub_request(:delete, "https://reactor.adobe.io/libraries/LB123/relationships/extensions")
+        .to_return(status: 204, body: "")
+    end
+
+    it "returns nil on success" do
+      expect(client.libraries.remove_extensions("LB123", ["EX123"])).to be_nil
+    end
+
+    it "sends the correct relationship payload" do
+      client.libraries.remove_extensions("LB123", ["EX123"])
+      expect(WebMock).to have_requested(:delete, "https://reactor.adobe.io/libraries/LB123/relationships/extensions")
+        .with(body: { data: [{ id: "EX123", type: "extensions" }] }.to_json)
+    end
+
+    it "supports removing multiple extensions at once" do
+      client.libraries.remove_extensions("LB123", ["EX123", "EX456"])
+      expect(WebMock).to have_requested(:delete, "https://reactor.adobe.io/libraries/LB123/relationships/extensions")
+        .with(body: { data: [{ id: "EX123", type: "extensions" }, { id: "EX456", type: "extensions" }] }.to_json)
+    end
+  end
+
+  describe "#set_extensions" do
+    before do
+      stub_request(:patch, "https://reactor.adobe.io/libraries/LB123/relationships/extensions")
+        .to_return(status: 204, body: "")
+    end
+
+    it "returns nil on success" do
+      expect(client.libraries.set_extensions("LB123", ["EX456"])).to be_nil
+    end
+
+    it "sends the complete replacement payload" do
+      client.libraries.set_extensions("LB123", ["EX456"])
+      expect(WebMock).to have_requested(:patch, "https://reactor.adobe.io/libraries/LB123/relationships/extensions")
+        .with(body: { data: [{ id: "EX456", type: "extensions" }] }.to_json)
+    end
+
+    it "supports setting an empty list to remove all extensions" do
+      client.libraries.set_extensions("LB123", [])
+      expect(WebMock).to have_requested(:patch, "https://reactor.adobe.io/libraries/LB123/relationships/extensions")
+        .with(body: { data: [] }.to_json)
     end
   end
 
@@ -216,8 +351,7 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
 
     it "returns nil on success" do
-      result = client.libraries.assign_environment("LB123", "EN123")
-      expect(result).to be_nil
+      expect(client.libraries.assign_environment("LB123", "EN123")).to be_nil
     end
 
     it "sends the correct relationship payload" do
@@ -233,8 +367,8 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     before do
       stub_request(:patch, "https://reactor.adobe.io/libraries/LB123")
         .to_return(
-          status: 200,
-          body:   jsonapi_response(
+          status:  200,
+          body:    jsonapi_response(
             type:       "libraries",
             id:         "LB123",
             attributes: library_attributes.merge("state" => "submitted")
@@ -279,29 +413,29 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
   describe "#find_with_resources" do
     let(:with_resources_response) do
       {
-        "data" => {
+        "data"     => {
           "id"         => "LB123",
           "type"       => "libraries",
           "attributes" => library_attributes
         },
         "included" => [
           {
-            "id"   => "RL123", "type" => "rules",
+            "id"            => "RL123", "type" => "rules",
             "attributes"    => { "name" => "Order Confirmation", "enabled" => true },
             "relationships" => { "latest_revision" => { "data" => { "id" => "RE001", "type" => "revisions" } } }
           },
           {
-            "id"   => "RL456", "type" => "rules",
+            "id"            => "RL456", "type" => "rules",
             "attributes"    => { "name" => "Add to Cart", "enabled" => true },
             "relationships" => { "latest_revision" => { "data" => { "id" => "RE002", "type" => "revisions" } } }
           },
           {
-            "id"   => "DE123", "type" => "data_elements",
+            "id"            => "DE123", "type" => "data_elements",
             "attributes"    => { "name" => "Page Name" },
             "relationships" => { "latest_revision" => { "data" => { "id" => "RE010", "type" => "revisions" } } }
           },
           {
-            "id"   => "EX123", "type" => "extensions",
+            "id"            => "EX123", "type" => "extensions",
             "attributes"    => { "name" => "Adobe Analytics" },
             "relationships" => { "latest_revision" => { "data" => { "id" => "RE020", "type" => "revisions" } } }
           }
@@ -315,8 +449,7 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
 
     it "returns a LibraryWithResources resource" do
-      result = client.libraries.find_with_resources("LB123")
-      expect(result).to be_a(ReactorSDK::Resources::LibraryWithResources)
+      expect(client.libraries.find_with_resources("LB123")).to be_a(ReactorSDK::Resources::LibraryWithResources)
     end
 
     it "maps library attributes correctly" do
@@ -326,8 +459,7 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
 
     it "returns the correct number of rules" do
-      result = client.libraries.find_with_resources("LB123")
-      expect(result.rules.length).to eq(2)
+      expect(client.libraries.find_with_resources("LB123").rules.length).to eq(2)
     end
 
     it "attaches revision_id to each rule" do
@@ -337,23 +469,19 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     end
 
     it "returns the correct number of data elements" do
-      result = client.libraries.find_with_resources("LB123")
-      expect(result.data_elements.length).to eq(1)
+      expect(client.libraries.find_with_resources("LB123").data_elements.length).to eq(1)
     end
 
     it "attaches revision_id to each data element" do
-      result = client.libraries.find_with_resources("LB123")
-      expect(result.data_elements.first.revision_id).to eq("RE010")
+      expect(client.libraries.find_with_resources("LB123").data_elements.first.revision_id).to eq("RE010")
     end
 
     it "returns the correct number of extensions" do
-      result = client.libraries.find_with_resources("LB123")
-      expect(result.extensions.length).to eq(1)
+      expect(client.libraries.find_with_resources("LB123").extensions.length).to eq(1)
     end
 
     it "attaches revision_id to each extension" do
-      result = client.libraries.find_with_resources("LB123")
-      expect(result.extensions.first.revision_id).to eq("RE020")
+      expect(client.libraries.find_with_resources("LB123").extensions.first.revision_id).to eq("RE020")
     end
 
     it "builds the resource_index correctly" do
@@ -410,26 +538,22 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
         stub_library_find("LB_DEV", library_attributes.merge("name" => "Dev Library"))
         stub_library_find("LB_STG", library_attributes.merge("name" => "Staging Library"))
         stub_library_find("LB_PRD", library_attributes.merge("name" => "Production Library"))
-
         stub_request(:get, "https://reactor.adobe.io/properties/PR123/libraries?page%5Bsize%5D=100")
           .to_return(
             status:  200,
             body:    { "data" => [dev_library, stg_library, prod_library], "links" => { "next" => nil } }.to_json,
             headers: { "Content-Type" => "application/json" }
           )
-
         stub_library_env("LB_DEV", dev_env_id)
         stub_library_env("LB_STG", stg_env_id)
         stub_library_env("LB_PRD", prod_env_id)
-
         stub_env_stage(dev_env_id,  "development")
         stub_env_stage(stg_env_id,  "staging")
         stub_env_stage(prod_env_id, "production")
       end
 
       it "returns staging and production libraries" do
-        result = client.libraries.upstream_libraries("LB_DEV", property_id: "PR123")
-        expect(result.length).to eq(2)
+        expect(client.libraries.upstream_libraries("LB_DEV", property_id: "PR123").length).to eq(2)
       end
 
       it "returns staging library first" do
@@ -452,17 +576,14 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
       before do
         stub_library_find("LB_STG", library_attributes.merge("name" => "Staging Library"))
         stub_library_find("LB_PRD", library_attributes.merge("name" => "Production Library"))
-
         stub_request(:get, "https://reactor.adobe.io/properties/PR123/libraries?page%5Bsize%5D=100")
           .to_return(
             status:  200,
             body:    { "data" => [stg_library, prod_library], "links" => { "next" => nil } }.to_json,
             headers: { "Content-Type" => "application/json" }
           )
-
         stub_library_env("LB_STG", stg_env_id)
         stub_library_env("LB_PRD", prod_env_id)
-
         stub_env_stage(stg_env_id,  "staging")
         stub_env_stage(prod_env_id, "production")
       end
@@ -482,8 +603,7 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
       end
 
       it "returns an empty array" do
-        result = client.libraries.upstream_libraries("LB_PRD", property_id: "PR123")
-        expect(result).to eq([])
+        expect(client.libraries.upstream_libraries("LB_PRD", property_id: "PR123")).to eq([])
       end
     end
   end

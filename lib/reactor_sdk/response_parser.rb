@@ -40,15 +40,13 @@ module ReactorSDK
       raise ArgumentError, "data cannot be nil" if data.nil?
 
       base_args = {
-        id:         data.fetch("id"),
-        type:       data.fetch("type"),
+        id: data.fetch("id"),
+        type: data.fetch("type"),
         attributes: data.fetch("attributes", {}),
-        meta:       data.fetch("meta", {})
+        meta: data.fetch("meta", {})
       }
 
-      if resource_class == Resources::Revision
-        base_args.merge!(extract_revision_extras(data, response))
-      end
+      base_args.merge!(extract_revision_extras(data, response)) if resource_class == Resources::Revision
 
       resource_class.new(**base_args)
     end
@@ -84,7 +82,7 @@ module ReactorSDK
       included_entity = find_included_entity(data, response)
 
       {
-        relationships:   relationships,
+        relationships: relationships,
         included_entity: included_entity
       }
     end

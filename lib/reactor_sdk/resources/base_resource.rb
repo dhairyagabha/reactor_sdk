@@ -131,10 +131,10 @@ module ReactorSDK
       #
       def to_h
         {
-          id:         @id,
-          type:       @type,
+          id: @id,
+          type: @type,
           attributes: @attributes,
-          meta:       @meta
+          meta: @meta
         }
       end
     end

@@ -14,9 +14,9 @@ RSpec.describe ReactorSDK::Endpoints::Environments do
 
   let(:environment_attributes) do
     {
-      "name"       => "Development",
-      "stage"      => "development",
-      "archived"   => false,
+      "name" => "Development",
+      "stage" => "development",
+      "archived" => false,
       "created_at" => "2024-01-01T00:00:00.000Z",
       "updated_at" => "2024-01-01T00:00:00.000Z"
     }
@@ -24,15 +24,15 @@ RSpec.describe ReactorSDK::Endpoints::Environments do
 
   let(:single_response) do
     jsonapi_response(
-      type:       "environments",
-      id:         "EN123",
+      type: "environments",
+      id: "EN123",
       attributes: environment_attributes
     ).to_json
   end
 
   let(:list_response) do
     jsonapi_list_response(
-      type:  "environments",
+      type: "environments",
       items: [
         { id: "EN123", attributes: environment_attributes },
         { id: "EN456", attributes: environment_attributes.merge("name" => "Staging", "stage" => "staging") },
@@ -66,7 +66,7 @@ RSpec.describe ReactorSDK::Endpoints::Environments do
 
     it "returns the correct ids" do
       result = client.environments.list_for_property("PR123")
-      expect(result.map(&:id)).to eq(["EN123", "EN456", "EN789"])
+      expect(result.map(&:id)).to eq(%w[EN123 EN456 EN789])
     end
   end
 
@@ -99,9 +99,9 @@ RSpec.describe ReactorSDK::Endpoints::Environments do
       end
 
       it "raises ResourceNotFoundError" do
-        expect {
+        expect do
           client.environments.find("EN_INVALID")
-        }.to raise_error(ReactorSDK::ResourceNotFoundError)
+        end.to raise_error(ReactorSDK::ResourceNotFoundError)
       end
     end
   end
@@ -126,7 +126,8 @@ RSpec.describe ReactorSDK::Endpoints::Environments do
     it "sends the correct payload" do
       client.environments.create(property_id: "PR123", name: "jsmith-dev")
       expect(WebMock).to have_requested(:post, "https://reactor.adobe.io/properties/PR123/environments")
-        .with(body: { data: { type: "environments", attributes: { name: "jsmith-dev", stage: "development" } } }.to_json)
+        .with(body: { data: { type: "environments",
+                              attributes: { name: "jsmith-dev", stage: "development" } } }.to_json)
     end
   end
 

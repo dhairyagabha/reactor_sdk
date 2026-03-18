@@ -52,7 +52,7 @@ module ReactorSDK
       # @raise [ReactorSDK::UnprocessableEntityError] if attributes are invalid
       #
       def create(company_id:, name:, platform:, domains: [])
-        payload  = build_payload(
+        payload = build_payload(
           "properties",
           { name: name, platform: platform, domains: domains }
         )

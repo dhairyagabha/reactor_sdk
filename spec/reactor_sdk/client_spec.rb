@@ -11,9 +11,9 @@
 RSpec.describe ReactorSDK::Client do
   let(:valid_params) do
     {
-      client_id:     "test_client_id",
+      client_id: "test_client_id",
       client_secret: "test_client_secret",
-      org_id:        "test_org_id",
+      org_id: "test_org_id",
       ims_token_url: "http://localhost:9292/token"
     }
   end
@@ -21,8 +21,8 @@ RSpec.describe ReactorSDK::Client do
   before do
     stub_request(:post, "http://localhost:9292/token")
       .to_return(
-        status:  200,
-        body:    { access_token: "test_token", expires_in: 86_400 }.to_json,
+        status: 200,
+        body: { access_token: "test_token", expires_in: 86_400 }.to_json,
         headers: { "Content-Type" => "application/json" }
       )
   end
@@ -43,9 +43,9 @@ RSpec.describe ReactorSDK::Client do
     end
 
     it "raises ConfigurationError when client_id is blank" do
-      expect {
+      expect do
         described_class.new(**valid_params.merge(client_id: ""))
-      }.to raise_error(ReactorSDK::ConfigurationError)
+      end.to raise_error(ReactorSDK::ConfigurationError)
     end
   end
 

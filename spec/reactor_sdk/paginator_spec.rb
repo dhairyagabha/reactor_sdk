@@ -21,7 +21,7 @@ RSpec.describe ReactorSDK::Paginator do
   #
   def page(items, next_url: nil)
     {
-      "data"  => items,
+      "data" => items,
       "links" => { "next" => next_url }
     }
   end
@@ -31,8 +31,8 @@ RSpec.describe ReactorSDK::Paginator do
   #
   def resource(id, type: "rules", name: "Rule #{id}")
     {
-      "id"         => id,
-      "type"       => type,
+      "id" => id,
+      "type" => type,
       "attributes" => { "name" => name }
     }
   end
@@ -72,17 +72,17 @@ RSpec.describe ReactorSDK::Paginator do
         allow(connection).to receive(:get)
           .with("/properties/PR123/rules?page%5Bsize%5D=100")
           .and_return(page(
-            [resource("RL1"), resource("RL2")],
-            next_url: "/properties/PR123/rules?page%5Bsize%5D=100&page%5Bcursor%5D=abc"
-          ))
+                        [resource("RL1"), resource("RL2")],
+                        next_url: "/properties/PR123/rules?page%5Bsize%5D=100&page%5Bcursor%5D=abc"
+                      ))
 
         # Page 2 — has a next cursor
         allow(connection).to receive(:get)
           .with("/properties/PR123/rules?page%5Bsize%5D=100&page%5Bcursor%5D=abc")
           .and_return(page(
-            [resource("RL3"), resource("RL4")],
-            next_url: "/properties/PR123/rules?page%5Bsize%5D=100&page%5Bcursor%5D=def"
-          ))
+                        [resource("RL3"), resource("RL4")],
+                        next_url: "/properties/PR123/rules?page%5Bsize%5D=100&page%5Bcursor%5D=def"
+                      ))
 
         # Page 3 — no next cursor
         allow(connection).to receive(:get)
@@ -167,9 +167,9 @@ RSpec.describe ReactorSDK::Paginator do
         allow(connection).to receive(:get)
           .with("/properties/PR123/rules?page%5Bsize%5D=100")
           .and_return(page(
-            [resource("RL1")],
-            next_url: "/properties/PR123/rules?page%5Bsize%5D=100&page%5Bcursor%5D=abc"
-          ))
+                        [resource("RL1")],
+                        next_url: "/properties/PR123/rules?page%5Bsize%5D=100&page%5Bcursor%5D=abc"
+                      ))
         allow(connection).to receive(:get)
           .with("/properties/PR123/rules?page%5Bsize%5D=100&page%5Bcursor%5D=abc")
           .and_return(page([resource("RL2")]))
@@ -213,9 +213,9 @@ RSpec.describe ReactorSDK::Paginator do
       end
 
       it "propagates the error to the caller" do
-        expect {
+        expect do
           paginator.all("/properties/PR_INVALID/rules")
-        }.to raise_error(ReactorSDK::ResourceNotFoundError)
+        end.to raise_error(ReactorSDK::ResourceNotFoundError)
       end
     end
 
@@ -226,9 +226,9 @@ RSpec.describe ReactorSDK::Paginator do
       end
 
       it "propagates the RateLimitError to the caller" do
-        expect {
+        expect do
           paginator.all("/properties/PR123/rules")
-        }.to raise_error(ReactorSDK::RateLimitError)
+        end.to raise_error(ReactorSDK::RateLimitError)
       end
     end
   end

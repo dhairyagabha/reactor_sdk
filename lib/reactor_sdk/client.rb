@@ -92,13 +92,13 @@ module ReactorSDK
       auto_refresh_token: true
     )
       @config = Configuration.new(
-        client_id:          client_id,
-        client_secret:      client_secret,
-        org_id:             org_id,
-        base_url:           base_url,
-        ims_token_url:      ims_token_url,
-        timeout:            timeout,
-        logger:             logger,
+        client_id: client_id,
+        client_secret: client_secret,
+        org_id: org_id,
+        base_url: base_url,
+        ims_token_url: ims_token_url,
+        timeout: timeout,
+        logger: logger,
         auto_refresh_token: auto_refresh_token
       )
 
@@ -132,8 +132,8 @@ module ReactorSDK
     def build_endpoints
       deps = {
         connection: @connection,
-        paginator:  @paginator,
-        parser:     @parser
+        paginator: @paginator,
+        parser: @parser
       }
 
       @companies       = Endpoints::Companies.new(**deps)

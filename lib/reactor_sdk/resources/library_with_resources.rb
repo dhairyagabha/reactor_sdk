@@ -164,10 +164,10 @@ module ReactorSDK
       def build_resources(raw_resources, resource_class)
         Array(raw_resources).map do |raw|
           resource = resource_class.new(
-            id:         raw.fetch("id"),
-            type:       raw.fetch("type"),
+            id: raw.fetch("id"),
+            type: raw.fetch("type"),
             attributes: raw.fetch("attributes", {}),
-            meta:       raw.fetch("meta", {})
+            meta: raw.fetch("meta", {})
           )
           resource.instance_variable_set(
             :@revision_id,

@@ -78,10 +78,10 @@ module ReactorSDK
       elapsed    = now - @last_tick
       new_tokens = (elapsed / INTERVAL_SECONDS) * MAX_REQUESTS_PER_MINUTE
 
-      if new_tokens >= 1
-        @tokens    = [@tokens + new_tokens.floor, MAX_REQUESTS_PER_MINUTE].min
-        @last_tick = now
-      end
+      return unless new_tokens >= 1
+
+      @tokens    = [@tokens + new_tokens.floor, MAX_REQUESTS_PER_MINUTE].min
+      @last_tick = now
     end
 
     ##

@@ -19,11 +19,11 @@ RSpec.describe ReactorSDK::Resources::Revision do
   def revision_response(entity_id: "RL123", entity_type: "rules", entity_attributes: {})
     {
       "data" => {
-        "id"   => "RE123",
+        "id" => "RE123",
         "type" => "revisions",
         "attributes" => {
           "activity_type" => "updated",
-          "created_at"    => "2024-06-01T14:32:00.000Z"
+          "created_at" => "2024-06-01T14:32:00.000Z"
         },
         "relationships" => {
           "entity" => {
@@ -33,8 +33,8 @@ RSpec.describe ReactorSDK::Resources::Revision do
       },
       "included" => [
         {
-          "id"         => entity_id,
-          "type"       => entity_type,
+          "id" => entity_id,
+          "type" => entity_type,
           "attributes" => entity_attributes
         }
       ]
@@ -54,8 +54,8 @@ RSpec.describe ReactorSDK::Resources::Revision do
   describe "attribute mapping" do
     subject(:revision) do
       response = revision_response(
-        entity_id:         "RL123",
-        entity_type:       "rules",
+        entity_id: "RL123",
+        entity_type: "rules",
         entity_attributes: { "name" => "Order Confirmation", "enabled" => true }
       )
       parse_revision(response)
@@ -142,10 +142,10 @@ RSpec.describe ReactorSDK::Resources::Revision do
     context "when the full response includes the entity" do
       it "returns the full attributes of the revisioned resource" do
         response = revision_response(
-          entity_id:         "RL123",
-          entity_type:       "rules",
+          entity_id: "RL123",
+          entity_type: "rules",
           entity_attributes: {
-            "name"    => "Order Confirmation",
+            "name" => "Order Confirmation",
             "enabled" => true,
             "created_at" => "2024-01-01T00:00:00.000Z"
           }
@@ -157,10 +157,10 @@ RSpec.describe ReactorSDK::Resources::Revision do
 
       it "returns the full settings hash for a rule component snapshot" do
         response = revision_response(
-          entity_id:   "RC123",
+          entity_id: "RC123",
           entity_type: "rule_components",
           entity_attributes: {
-            "name"     => "Custom Code",
+            "name" => "Custom Code",
             "settings" => "{\"source\":\"var x = 1;\",\"language\":\"javascript\"}"
           }
         )
@@ -173,10 +173,10 @@ RSpec.describe ReactorSDK::Resources::Revision do
       it "returns the XDM structure for a Web SDK action snapshot" do
         xdm = { "eventType" => "web.webpagedetails.pageViews" }
         response = revision_response(
-          entity_id:   "RC456",
+          entity_id: "RC456",
           entity_type: "rule_components",
           entity_attributes: {
-            "name"     => "Send Event",
+            "name" => "Send Event",
             "settings" => JSON.generate({ "xdm" => xdm })
           }
         )
@@ -188,8 +188,8 @@ RSpec.describe ReactorSDK::Resources::Revision do
     context "when fetched from a list response — no included array" do
       it "returns an empty Hash" do
         revision = ReactorSDK::Resources::Revision.new(
-          id:         "RE123",
-          type:       "revisions",
+          id: "RE123",
+          type: "revisions",
           attributes: { "activity_type" => "updated", "created_at" => "2024-01-01T00:00:00.000Z" }
         )
         expect(revision.entity_snapshot).to eq({})
@@ -200,9 +200,9 @@ RSpec.describe ReactorSDK::Resources::Revision do
       it "returns an empty Hash" do
         response = {
           "data" => {
-            "id"   => "RE123",
+            "id" => "RE123",
             "type" => "revisions",
-            "attributes"    => { "activity_type" => "updated" },
+            "attributes" => { "activity_type" => "updated" },
             "relationships" => {
               "entity" => { "data" => { "id" => "RL999", "type" => "rules" } }
             }
@@ -222,9 +222,9 @@ RSpec.describe ReactorSDK::Resources::Revision do
   describe "#inspect" do
     it "includes id, activity_type, entity_id and entity_type" do
       revision = parse_revision(revision_response(
-        entity_id:   "RL123",
-        entity_type: "rules"
-      ))
+                                  entity_id: "RL123",
+                                  entity_type: "rules"
+                                ))
       expect(revision.inspect).to include("RE123")
       expect(revision.inspect).to include("updated")
       expect(revision.inspect).to include("RL123")

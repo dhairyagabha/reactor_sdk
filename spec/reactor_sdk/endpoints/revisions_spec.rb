@@ -14,13 +14,13 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
   let(:revision_attributes) do
     {
       "activity_type" => "updated",
-      "created_at"    => "2024-06-01T14:32:00.000Z"
+      "created_at" => "2024-06-01T14:32:00.000Z"
     }
   end
 
   let(:rule_attributes) do
     {
-      "name"    => "Order Confirmation",
+      "name" => "Order Confirmation",
       "enabled" => true
     }
   end
@@ -31,9 +31,9 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
   def full_revision_response(entity_id: "RL123", entity_type: "rules", entity_attrs: {})
     {
       "data" => {
-        "id"            => "RE123",
-        "type"          => "revisions",
-        "attributes"    => revision_attributes,
+        "id" => "RE123",
+        "type" => "revisions",
+        "attributes" => revision_attributes,
         "relationships" => {
           "entity" => {
             "data" => { "id" => entity_id, "type" => entity_type }
@@ -42,8 +42,8 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
       },
       "included" => [
         {
-          "id"         => entity_id,
-          "type"       => entity_type,
+          "id" => entity_id,
+          "type" => entity_type,
           "attributes" => entity_attrs
         }
       ]
@@ -56,9 +56,9 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
   def revision_list_response(count: 2)
     items = count.times.map do |i|
       {
-        "id"            => "RE#{i + 1}",
-        "type"          => "revisions",
-        "attributes"    => revision_attributes.merge("activity_type" => i.zero? ? "updated" : "created"),
+        "id" => "RE#{i + 1}",
+        "type" => "revisions",
+        "attributes" => revision_attributes.merge("activity_type" => i.zero? ? "updated" : "created"),
         "relationships" => {}
       }
     end
@@ -72,9 +72,9 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
       before do
         stub_request(:get, "https://reactor.adobe.io/revisions/RE123")
           .to_return(
-            status:  200,
-            body:    full_revision_response(
-              entity_id:   "RL123",
+            status: 200,
+            body: full_revision_response(
+              entity_id: "RL123",
               entity_type: "rules",
               entity_attrs: rule_attributes
             ),
@@ -118,12 +118,12 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
       before do
         stub_request(:get, "https://reactor.adobe.io/revisions/RE456")
           .to_return(
-            status:  200,
-            body:    full_revision_response(
-              entity_id:    "DE456",
-              entity_type:  "data_elements",
+            status: 200,
+            body: full_revision_response(
+              entity_id: "DE456",
+              entity_type: "data_elements",
               entity_attrs: {
-                "name"     => "Page Name",
+                "name" => "Page Name",
                 "settings" => "{\"source\":\"return digitalData.page.name;\"}"
               }
             ),
@@ -152,11 +152,12 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
       before do
         stub_request(:get, "https://reactor.adobe.io/revisions/RE789")
           .to_return(
-            status:  200,
-            body:    full_revision_response(
-              entity_id:    "EX789",
-              entity_type:  "extensions",
-              entity_attrs: { "name" => "Adobe Analytics", "delegate_descriptor_id" => "adobe-analytics::extensionName::2.1.0" }
+            status: 200,
+            body: full_revision_response(
+              entity_id: "EX789",
+              entity_type: "extensions",
+              entity_attrs: { "name" => "Adobe Analytics",
+                              "delegate_descriptor_id" => "adobe-analytics::extensionName::2.1.0" }
             ),
             headers: { "Content-Type" => "application/json" }
           )
@@ -176,9 +177,9 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
       end
 
       it "raises ResourceNotFoundError" do
-        expect {
+        expect do
           client.revisions.find("RE_INVALID")
-        }.to raise_error(ReactorSDK::ResourceNotFoundError)
+        end.to raise_error(ReactorSDK::ResourceNotFoundError)
       end
     end
   end
@@ -189,8 +190,8 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
     before do
       stub_request(:get, "https://reactor.adobe.io/rules/RL123/revisions?page%5Bsize%5D=100")
         .to_return(
-          status:  200,
-          body:    revision_list_response(count: 2),
+          status: 200,
+          body: revision_list_response(count: 2),
           headers: { "Content-Type" => "application/json" }
         )
     end
@@ -223,8 +224,8 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
     before do
       stub_request(:get, "https://reactor.adobe.io/data_elements/DE123/revisions?page%5Bsize%5D=100")
         .to_return(
-          status:  200,
-          body:    revision_list_response(count: 1),
+          status: 200,
+          body: revision_list_response(count: 1),
           headers: { "Content-Type" => "application/json" }
         )
     end
@@ -246,8 +247,8 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
     before do
       stub_request(:get, "https://reactor.adobe.io/extensions/EX123/revisions?page%5Bsize%5D=100")
         .to_return(
-          status:  200,
-          body:    revision_list_response(count: 3),
+          status: 200,
+          body: revision_list_response(count: 3),
           headers: { "Content-Type" => "application/json" }
         )
     end

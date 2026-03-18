@@ -79,14 +79,14 @@ RSpec.configure do |config|
     stub_request(:post, "http://localhost:9292/token")
       .to_return(
         status: 200,
-        body:   { access_token: "test_token", expires_in: 86_400 }.to_json,
+        body: { access_token: "test_token", expires_in: 86_400 }.to_json,
         headers: { "Content-Type" => "application/json" }
       )
 
     ReactorSDK::Client.new(
-      client_id:     "test_client_id",
+      client_id: "test_client_id",
       client_secret: "test_client_secret",
-      org_id:        "test_org_id",
+      org_id: "test_org_id",
       ims_token_url: "http://localhost:9292/token"
     )
   end
@@ -103,8 +103,8 @@ RSpec.configure do |config|
   def jsonapi_response(type:, id:, attributes: {})
     {
       "data" => {
-        "id"         => id,
-        "type"       => type,
+        "id" => id,
+        "type" => type,
         "attributes" => attributes
       }
     }
@@ -119,13 +119,13 @@ RSpec.configure do |config|
   #
   def jsonapi_list_response(type:, items:)
     {
-      "data"  => items.map { |item|
+      "data" => items.map do |item|
         {
-          "id"         => item[:id],
-          "type"       => type,
+          "id" => item[:id],
+          "type" => type,
           "attributes" => item[:attributes]
         }
-      },
+      end,
       "links" => { "next" => nil }
     }
   end

@@ -62,9 +62,7 @@ module ReactorSDK
       #
       # @return [String, nil] Resource ID (e.g. "RL123") or nil if not present
       #
-      def entity_id
-        @entity_id
-      end
+      attr_reader :entity_id
 
       ##
       # Returns the JSON:API type of the resource this revision belongs to.
@@ -72,9 +70,7 @@ module ReactorSDK
       #
       # @return [String, nil] Resource type (e.g. "rules") or nil if not present
       #
-      def entity_type
-        @entity_type
-      end
+      attr_reader :entity_type
 
       ##
       # Overrides BaseResource initializer to extract the included entity

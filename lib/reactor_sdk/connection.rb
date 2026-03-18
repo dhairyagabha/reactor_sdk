@@ -18,6 +18,12 @@
 #     Accept:          application/vnd.api+json;revision=1
 #     Content-Type:    application/vnd.api+json
 #
+#   Note on delete_relationship vs delete:
+#     Standard DELETE requests have no body (used for resource deletion).
+#     JSON:API relationship DELETE requests require a body identifying which
+#     members to remove. delete_relationship handles this case by sending
+#     a DELETE with a JSON body via a custom Faraday request block.
+#
 # @domain Infrastructure
 # @depends ReactorSDK::Authentication, ReactorSDK::RateLimiter
 #
@@ -28,7 +34,7 @@ module ReactorSDK
     # Required by Adobe — omitting this may route to an unstable revision.
     ACCEPT_HEADER = "application/vnd.api+json;revision=1"
 
-    # Required content type for all write requests (POST, PATCH)
+    # Required content type for all write requests (POST, PATCH, DELETE with body)
     CONTENT_TYPE = "application/vnd.api+json"
 
     ##
@@ -87,9 +93,11 @@ module ReactorSDK
 
     ##
     # Executes an authenticated DELETE request to the Reactor API.
+    # Used for resource deletion — sends no body.
+    # Adobe returns 204 No Content on successful deletion.
     #
     # @param path [String] Relative API path
-    # @return [nil] Always returns nil on success (Adobe returns 204 No Content)
+    # @return [nil] Always returns nil on success
     # @raise [ReactorSDK::Error] on non-2xx after all retries exhausted
     #
     def delete(path)
@@ -98,24 +106,46 @@ module ReactorSDK
       handle_response(response)
     end
 
+    ##
+    # Executes an authenticated DELETE request with a JSON body.
+    #
+    # Used exclusively for JSON:API relationship removal — the Reactor API
+    # requires a body on relationship DELETE requests to identify which
+    # members to remove. Standard DELETE sends no body, so this method
+    # constructs the request manually via a Faraday block.
+    #
+    # Example: removing specific rules from a library requires:
+    #   DELETE /libraries/:id/relationships/rules
+    #   Body: { "data": [{ "id": "RL123", "type": "rules" }] }
+    #
+    # @param path [String] Relative API path
+    # @param body [Hash]   Relationship payload identifying members to remove
+    # @return [nil] Always returns nil on success (Adobe returns 204)
+    # @raise [ReactorSDK::Error] on non-2xx after all retries exhausted
+    #
+    def delete_relationship(path, body)
+      @rate_limiter.acquire
+      response = @http.run_request(:delete, path, body.to_json, {}) do |req|
+        inject_headers(req)
+      end
+      handle_response(response)
+    end
+
     private
 
     ##
     # Builds the Faraday connection with the full middleware stack.
-    #
-    # Middleware order matters — retry wraps the actual request so retries
-    # happen before the response reaches handle_response.
     #
     # @return [Faraday::Connection]
     #
     def build_faraday_connection
       Faraday.new(url: @config.base_url) do |f|
         f.request :retry, {
-          max:                 3,
-          interval:            1.0,
+          max: 3,
+          interval: 1.0,
           interval_randomness: 0.5,
-          backoff_factor:      2,
-          retry_statuses:      [429, 500, 502, 503, 504]
+          backoff_factor: 2,
+          retry_statuses: [429, 500, 502, 503, 504]
         }
         f.response :logger, @config.logger if @config.logger
         f.adapter  :net_http
@@ -126,7 +156,6 @@ module ReactorSDK
 
     ##
     # Injects all required Adobe authentication and versioning headers.
-    # Called as a request block before every HTTP call.
     #
     # @param req [Faraday::Request] Outgoing request — headers mutated in place
     # @sideeffect Modifies req.headers
@@ -203,7 +232,6 @@ module ReactorSDK
 
     ##
     # Parses a JSON string into a Ruby Hash.
-    # Returns nil if the body is blank (e.g. empty 204 response).
     #
     # @param body [String] Raw response body string
     # @return [Hash, nil] Parsed hash or nil if body is blank

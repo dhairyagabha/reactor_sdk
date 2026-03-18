@@ -14,10 +14,10 @@ RSpec.describe ReactorSDK::Endpoints::Properties do
 
   let(:property_attributes) do
     {
-      "name"       => "My Test Property",
-      "platform"   => "web",
-      "enabled"    => true,
-      "domains"    => ["example.com"],
+      "name" => "My Test Property",
+      "platform" => "web",
+      "enabled" => true,
+      "domains" => ["example.com"],
       "created_at" => "2024-01-01T00:00:00.000Z",
       "updated_at" => "2024-01-01T00:00:00.000Z"
     }
@@ -25,15 +25,15 @@ RSpec.describe ReactorSDK::Endpoints::Properties do
 
   let(:single_response) do
     jsonapi_response(
-      type:       "properties",
-      id:         "PR123",
+      type: "properties",
+      id: "PR123",
       attributes: property_attributes
     ).to_json
   end
 
   let(:list_response) do
     jsonapi_list_response(
-      type:  "properties",
+      type: "properties",
       items: [
         { id: "PR123", attributes: property_attributes },
         { id: "PR456", attributes: property_attributes.merge("name" => "Second Property") }
@@ -67,7 +67,7 @@ RSpec.describe ReactorSDK::Endpoints::Properties do
 
     it "returns the correct ids" do
       result = client.properties.list_for_company("CO123")
-      expect(result.map(&:id)).to eq(["PR123", "PR456"])
+      expect(result.map(&:id)).to eq(%w[PR123 PR456])
     end
   end
 
@@ -100,9 +100,9 @@ RSpec.describe ReactorSDK::Endpoints::Properties do
       end
 
       it "raises ResourceNotFoundError" do
-        expect {
+        expect do
           client.properties.find("PR_INVALID")
-        }.to raise_error(ReactorSDK::ResourceNotFoundError)
+        end.to raise_error(ReactorSDK::ResourceNotFoundError)
       end
     end
   end
@@ -116,9 +116,9 @@ RSpec.describe ReactorSDK::Endpoints::Properties do
     it "returns a Property resource" do
       result = client.properties.create(
         company_id: "CO123",
-        name:       "My Test Property",
-        platform:   "web",
-        domains:    ["example.com"]
+        name: "My Test Property",
+        platform: "web",
+        domains: ["example.com"]
       )
       expect(result).to be_a(ReactorSDK::Resources::Property)
     end
@@ -126,8 +126,8 @@ RSpec.describe ReactorSDK::Endpoints::Properties do
     it "maps attributes on the returned resource" do
       result = client.properties.create(
         company_id: "CO123",
-        name:       "My Test Property",
-        platform:   "web"
+        name: "My Test Property",
+        platform: "web"
       )
       expect(result.name).to eq("My Test Property")
     end
@@ -137,14 +137,14 @@ RSpec.describe ReactorSDK::Endpoints::Properties do
         stub_request(:post, "https://reactor.adobe.io/companies/CO123/properties")
           .to_return(
             status: 422,
-            body:   { errors: [{ detail: "Name can't be blank" }] }.to_json
+            body: { errors: [{ detail: "Name can't be blank" }] }.to_json
           )
       end
 
       it "raises UnprocessableEntityError" do
-        expect {
+        expect do
           client.properties.create(company_id: "CO123", name: "", platform: "web")
-        }.to raise_error(ReactorSDK::UnprocessableEntityError)
+        end.to raise_error(ReactorSDK::UnprocessableEntityError)
       end
     end
   end
