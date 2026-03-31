@@ -4,26 +4,23 @@
 # @file endpoints/revisions.rb
 # @description Endpoint group for Adobe Launch Revision resources.
 #
-#   Revisions are point-in-time snapshots of revisable resources —
-#   rules, data elements, and extensions. Every save creates a new
-#   revision capturing the full resource state at that moment.
+#   The Reactor API exposes revision history in two different shapes:
 #
-#   Revisions are the foundation of upstream resolution in LaunchGuard.
-#   When a resource does not exist in the target library, the app walks
-#   upstream (Development → Staging → Production) to find the nearest
-#   version, then calls revisions.find to retrieve the full snapshot
-#   for comparison.
+#     1. Resource-scoped revision lists
+#        GET /rules/:id/revisions
+#        GET /data_elements/:id/revisions
+#        GET /extensions/:id/revisions
+#        These return versioned resources of the same type as the parent
+#        endpoint (Rule, DataElement, Extension), newest first.
 #
-#   Key distinction between list and find:
-#     list_for_rule / list_for_data_element / list_for_extension
-#       → Returns revision metadata only (id, activity_type, created_at)
-#       → Does NOT include the entity snapshot
-#       → Use when you need to discover available revision IDs
+#     2. Generic revision lookups
+#        GET /revisions/:id
+#        These are used when another endpoint exposes a dedicated
+#        `revisions` resource ID, such as a `latest_revision` relationship.
 #
-#     find(revision_id)
-#       → Returns full revision including the entity snapshot
-#       → Use when you need the actual resource attributes at a point in time
-#       → Always use this when building a diff
+#   In practice this means the list methods below return typed versioned
+#   resources, while `find` still resolves an explicit `revisions` ID into
+#   a Resources::Revision snapshot wrapper.
 #
 # @domain Endpoints
 # @see https://developer.adobe.com/experience-platform/documentation/tags/api/endpoints/revisions/
@@ -33,7 +30,7 @@ module ReactorSDK
   module Endpoints
     class Revisions < BaseEndpoint
       ##
-      # Retrieves a single revision by its Adobe ID.
+      # Retrieves a single generic revision by its Adobe ID.
       #
       # Returns the full revision including the entity snapshot — the complete
       # attributes of the revisioned resource at this point in time. This is
@@ -41,6 +38,11 @@ module ReactorSDK
       #
       # Calls GET /revisions/:id which returns the revision data alongside
       # the full resource in the included array.
+      #
+      # Note: this method expects a `revisions` resource ID (for example, an
+      # ID surfaced by a `latest_revision` relationship). It does not accept
+      # rule, data element, or extension IDs from the resource-scoped
+      # `/revisions` list endpoints.
       #
       # @param revision_id [String] Adobe revision ID (format: "RE" + hex string)
       # @return [ReactorSDK::Resources::Revision] Revision with entity_snapshot populated
@@ -54,49 +56,46 @@ module ReactorSDK
       ##
       # Lists all revisions for a given rule, newest first.
       #
-      # Returns revision metadata only — does NOT include entity snapshots.
-      # Use the returned revision IDs with find() when you need full snapshots.
+      # Returns versioned rule resources, newest first.
       # Follows pagination automatically — returns all revisions.
       #
       # @param rule_id [String] Adobe rule ID (format: "RL" + hex string)
-      # @return [Array<ReactorSDK::Resources::Revision>] All revisions, newest first
+      # @return [Array<ReactorSDK::Resources::Rule>] Versioned rules, newest first
       # @raise [ReactorSDK::ResourceNotFoundError] if the rule does not exist
       #
       def list_for_rule(rule_id)
         records = @paginator.all("/rules/#{rule_id}/revisions")
-        @parser.parse_many(records, Resources::Revision)
+        @parser.parse_many(records, Resources::Rule)
       end
 
       ##
       # Lists all revisions for a given data element, newest first.
       #
-      # Returns revision metadata only — does NOT include entity snapshots.
-      # Use the returned revision IDs with find() when you need full snapshots.
+      # Returns versioned data element resources, newest first.
       # Follows pagination automatically — returns all revisions.
       #
       # @param data_element_id [String] Adobe data element ID (format: "DE" + hex string)
-      # @return [Array<ReactorSDK::Resources::Revision>] All revisions, newest first
+      # @return [Array<ReactorSDK::Resources::DataElement>] Versioned data elements, newest first
       # @raise [ReactorSDK::ResourceNotFoundError] if the data element does not exist
       #
       def list_for_data_element(data_element_id)
         records = @paginator.all("/data_elements/#{data_element_id}/revisions")
-        @parser.parse_many(records, Resources::Revision)
+        @parser.parse_many(records, Resources::DataElement)
       end
 
       ##
       # Lists all revisions for a given extension, newest first.
       #
-      # Returns revision metadata only — does NOT include entity snapshots.
-      # Use the returned revision IDs with find() when you need full snapshots.
+      # Returns versioned extension resources, newest first.
       # Follows pagination automatically — returns all revisions.
       #
       # @param extension_id [String] Adobe extension ID (format: "EX" + hex string)
-      # @return [Array<ReactorSDK::Resources::Revision>] All revisions, newest first
+      # @return [Array<ReactorSDK::Resources::Extension>] Versioned extensions, newest first
       # @raise [ReactorSDK::ResourceNotFoundError] if the extension does not exist
       #
       def list_for_extension(extension_id)
         records = @paginator.all("/extensions/#{extension_id}/revisions")
-        @parser.parse_many(records, Resources::Revision)
+        @parser.parse_many(records, Resources::Extension)
       end
     end
   end

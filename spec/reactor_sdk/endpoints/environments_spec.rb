@@ -4,9 +4,11 @@
 # @file spec/reactor_sdk/endpoints/environments_spec.rb
 # @description Tests for ReactorSDK::Endpoints::Environments.
 #
-#   Covers: list, find, create, delete, and error handling.
-#   Environment creation is especially important for LaunchGuard —
-#   it is how personal developer sandboxes are provisioned.
+#   Covers: list, find, create (with required host_id), delete,
+#   and error handling.
+#
+#   Note: The Reactor API requires a host relationship when creating
+#   an environment. All create tests include a host_id.
 #
 
 RSpec.describe ReactorSDK::Endpoints::Environments do
@@ -41,6 +43,8 @@ RSpec.describe ReactorSDK::Endpoints::Environments do
     ).to_json
   end
 
+  # ── list_for_property ─────────────────────────────────────────
+
   describe '#list_for_property' do
     before do
       stub_request(:get, 'https://reactor.adobe.io/properties/PR123/environments?page%5Bsize%5D=100')
@@ -69,6 +73,8 @@ RSpec.describe ReactorSDK::Endpoints::Environments do
       expect(result.map(&:id)).to eq(%w[EN123 EN456 EN789])
     end
   end
+
+  # ── find ──────────────────────────────────────────────────────
 
   describe '#find' do
     before do
@@ -106,6 +112,8 @@ RSpec.describe ReactorSDK::Endpoints::Environments do
     end
   end
 
+  # ── create ────────────────────────────────────────────────────
+
   describe '#create' do
     before do
       stub_request(:post, 'https://reactor.adobe.io/properties/PR123/environments')
@@ -113,23 +121,57 @@ RSpec.describe ReactorSDK::Endpoints::Environments do
     end
 
     it 'returns an Environment resource' do
-      result = client.environments.create(property_id: 'PR123', name: 'jsmith-dev')
+      result = client.environments.create(
+        property_id: 'PR123',
+        name: 'jsmith-dev',
+        host_id: 'HT123'
+      )
       expect(result).to be_a(ReactorSDK::Resources::Environment)
     end
 
     it 'maps attributes on the returned resource' do
-      result = client.environments.create(property_id: 'PR123', name: 'jsmith-dev')
+      result = client.environments.create(
+        property_id: 'PR123',
+        name: 'jsmith-dev',
+        host_id: 'HT123'
+      )
       expect(result.name).to eq('Development')
       expect(result.stage).to eq('development')
     end
 
-    it 'sends the correct payload' do
-      client.environments.create(property_id: 'PR123', name: 'jsmith-dev')
+    it 'sends the correct payload including host relationship' do
+      client.environments.create(
+        property_id: 'PR123',
+        name: 'jsmith-dev',
+        stage: 'development',
+        host_id: 'HT123'
+      )
       expect(WebMock).to have_requested(:post, 'https://reactor.adobe.io/properties/PR123/environments')
-        .with(body: { data: { type: 'environments',
-                              attributes: { name: 'jsmith-dev', stage: 'development' } } }.to_json)
+        .with(body: {
+          data: {
+            type: 'environments',
+            attributes: { name: 'jsmith-dev', stage: 'development' },
+            relationships: {
+              host: { data: { id: 'HT123', type: 'hosts' } }
+            }
+          }
+        }.to_json)
+    end
+
+    context 'when host_id is blank' do
+      it 'raises ConfigurationError' do
+        expect do
+          client.environments.create(
+            property_id: 'PR123',
+            name: 'jsmith-dev',
+            host_id: ''
+          )
+        end.to raise_error(ReactorSDK::ConfigurationError, /host_id is required/)
+      end
     end
   end
+
+  # ── delete ────────────────────────────────────────────────────
 
   describe '#delete' do
     before do

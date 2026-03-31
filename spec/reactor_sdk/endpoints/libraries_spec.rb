@@ -386,6 +386,18 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
       result = client.libraries.transition('LB123', state: 'submitted')
       expect(result.state).to eq('submitted')
     end
+
+    it 'sends the transition as a meta action' do
+      client.libraries.transition('LB123', state: 'submitted')
+      expect(WebMock).to have_requested(:patch, 'https://reactor.adobe.io/libraries/LB123')
+        .with(body: {
+                data: {
+                  id: 'LB123',
+                  type: 'libraries',
+                  meta: { action: 'submit' }
+                }
+              }.to_json)
+    end
   end
 
   # ── build ─────────────────────────────────────────────────────

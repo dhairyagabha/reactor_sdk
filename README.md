@@ -417,20 +417,24 @@ puts build.succeeded? ? "Build complete" : "Build failed"
 Revisions are point-in-time snapshots of rules, data elements, and extensions. They are the foundation of any diffing or comparison workflow.
 
 **Key distinction:**
-- `list_for_*` returns revision metadata only — no entity snapshot. Use when discovering available revision IDs.
-- `find` returns the full revision including the complete entity snapshot. Always use this when you need actual resource attributes for comparison.
+- `list_for_*` returns versioned resources of the matching type (`Rule`, `DataElement`, `Extension`), newest first.
+- `find` returns a `Revision` snapshot when you already have a dedicated `revisions` ID, such as one exposed by a `latest_revision` relationship.
 ```ruby
-# List all revisions for a rule (metadata only — no snapshot)
+# List all revisions for a rule
 revisions = client.revisions.list_for_rule("RL123")
-revisions.each { |r| puts "#{r.id} — #{r.activity_type} — #{r.created_at}" }
+revisions.each { |r| puts "#{r.id} — revision #{r['revision_number']} — #{r.created_at}" }
+puts revisions.first.name
+puts revisions.first.enabled?
 
 # List all revisions for a data element
 revisions = client.revisions.list_for_data_element("DE123")
+puts revisions.first.parsed_settings
 
 # List all revisions for an extension
 revisions = client.revisions.list_for_extension("EX123")
+puts revisions.first.delegate_descriptor_id
 
-# Fetch a specific revision with full entity snapshot
+# Fetch a specific generic revision with full entity snapshot
 revision = client.revisions.find("RE123")
 puts revision.id              # => "RE123"
 puts revision.activity_type   # => "updated"
@@ -566,7 +570,7 @@ revision.entity_snapshot
 # }
 ```
 
-Revisions fetched via list methods return metadata only — `entity_snapshot` returns `{}`. Always use `find` when you need the snapshot.
+The list methods return full versioned resources of the matching type. Use `find` only when another API response gives you a dedicated `revisions` ID and you need the generic snapshot wrapper.
 
 ### Upstream library resolution
 

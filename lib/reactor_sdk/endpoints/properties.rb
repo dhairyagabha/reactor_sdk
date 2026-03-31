@@ -25,8 +25,7 @@ module ReactorSDK
       # @raise [ReactorSDK::AuthorizationError] if the token cannot access this company
       #
       def list_for_company(company_id)
-        records = @paginator.all("/companies/#{company_id}/properties")
-        records.map { |r| @parser.parse(r, Resources::Property) }
+        list_resources("/companies/#{company_id}/properties", Resources::Property)
       end
 
       ##
@@ -37,8 +36,17 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the property does not exist
       #
       def find(property_id)
-        response = @connection.get("/properties/#{property_id}")
-        @parser.parse(response['data'], Resources::Property)
+        fetch_resource("/properties/#{property_id}", Resources::Property)
+      end
+
+      ##
+      # Retrieves the company that owns a property.
+      #
+      # @param property_id [String] Adobe property ID
+      # @return [ReactorSDK::Resources::Company]
+      #
+      def company(property_id)
+        fetch_resource("/properties/#{property_id}/company", Resources::Company)
       end
 
       ##
@@ -52,12 +60,12 @@ module ReactorSDK
       # @raise [ReactorSDK::UnprocessableEntityError] if attributes are invalid
       #
       def create(company_id:, name:, platform:, domains: [])
-        payload = build_payload(
+        create_resource(
+          "/companies/#{company_id}/properties",
           'properties',
-          { name: name, platform: platform, domains: domains }
+          Resources::Property,
+          attributes: { name: name, platform: platform, domains: domains }
         )
-        response = @connection.post("/companies/#{company_id}/properties", payload)
-        @parser.parse(response['data'], Resources::Property)
       end
 
       ##
@@ -69,9 +77,13 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the property does not exist
       #
       def update(property_id, attributes)
-        payload  = build_payload('properties', attributes, id: property_id)
-        response = @connection.patch("/properties/#{property_id}", payload)
-        @parser.parse(response['data'], Resources::Property)
+        update_resource(
+          "/properties/#{property_id}",
+          property_id,
+          'properties',
+          Resources::Property,
+          attributes: attributes
+        )
       end
 
       ##
@@ -83,8 +95,18 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the property does not exist
       #
       def delete(property_id)
-        @connection.delete("/properties/#{property_id}")
-        nil
+        delete_resource("/properties/#{property_id}")
+      end
+
+      ##
+      # Creates a note on a property.
+      #
+      # @param property_id [String] Adobe property ID
+      # @param text        [String] Note body text
+      # @return [ReactorSDK::Resources::Note]
+      #
+      def create_note(property_id, text)
+        create_note_for_path("/properties/#{property_id}/notes", text)
       end
     end
   end

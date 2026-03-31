@@ -11,19 +11,6 @@
 #   - Translates HTTP error status codes into typed ReactorSDK errors
 #   - Parses JSON responses into Ruby hashes
 #
-#   Required headers injected on every request:
-#     Authorization:   Bearer {token}
-#     x-api-key:       {client_id}
-#     x-gw-ims-org-id: {org_id}
-#     Accept:          application/vnd.api+json;revision=1
-#     Content-Type:    application/vnd.api+json
-#
-#   Note on delete_relationship vs delete:
-#     Standard DELETE requests have no body (used for resource deletion).
-#     JSON:API relationship DELETE requests require a body identifying which
-#     members to remove. delete_relationship handles this case by sending
-#     a DELETE with a JSON body via a custom Faraday request block.
-#
 # @domain Infrastructure
 # @depends ReactorSDK::Authentication, ReactorSDK::RateLimiter
 #
@@ -92,7 +79,6 @@ module ReactorSDK
 
     ##
     # Executes an authenticated DELETE request with no body.
-    # Used for resource deletion — Adobe returns 204 No Content on success.
     #
     # @param path [String] Relative API path
     # @return [nil]
@@ -106,8 +92,7 @@ module ReactorSDK
 
     ##
     # Executes an authenticated DELETE request with a JSON body.
-    # Used for JSON:API relationship removal which requires a body
-    # identifying which members to remove.
+    # Used for JSON:API relationship removal.
     #
     # @param path [String] Relative API path
     # @param body [Hash]   Relationship payload
@@ -131,18 +116,27 @@ module ReactorSDK
     #
     def build_faraday_connection
       Faraday.new(url: @config.base_url) do |f|
-        f.request :retry, {
-          max: 3,
-          interval: 1.0,
-          interval_randomness: 0.5,
-          backoff_factor: 2,
-          retry_statuses: [429, 500, 502, 503, 504]
-        }
+        f.request :retry, retry_options
         f.response :logger, @config.logger if @config.logger
         f.adapter  :net_http
         f.options.timeout      = @config.timeout
         f.options.open_timeout = 10
       end
+    end
+
+    ##
+    # Retry configuration for transient Adobe API failures.
+    #
+    # @return [Hash]
+    #
+    def retry_options
+      {
+        max: 3,
+        interval: 1.0,
+        interval_randomness: 0.5,
+        backoff_factor: 2,
+        retry_statuses: [429, 500, 502, 503, 504]
+      }
     end
 
     ##
@@ -177,23 +171,121 @@ module ReactorSDK
 
     ##
     # Raises the appropriate typed error for a non-2xx response.
+    # Extracts Adobe error detail from the response body when available.
     #
     # @param response [Faraday::Response] Raw HTTP response
     # @param body     [Hash, nil]         Parsed response body
     # @raise [ReactorSDK::Error]
     #
     def raise_error_for_status(response, body)
+      raise_rate_limit_error(response) if response.status == 429
+
+      raise build_error_for_status(response, body)
+    end
+
+    ##
+    # Builds the appropriate typed error for a non-2xx response.
+    #
+    # @param response [Faraday::Response]
+    # @param body     [Hash, nil]
+    # @return [ReactorSDK::Error]
+    #
+    def build_error_for_status(response, body)
+      adobe_message = extract_adobe_message(body)
+
       case response.status
-      when 401 then raise AuthenticationError.new('Unauthorized — check your Adobe IMS token', status: 401)
-      when 403 then raise AuthorizationError.new('Forbidden — token lacks permission for this resource', status: 403)
-      when 404 then raise ResourceNotFoundError.new("Resource not found: #{response.env.url.path}", status: 404)
-      when 422 then raise UnprocessableEntityError.new('Validation failed',
-                                                       validation_errors: Array(body&.dig('errors')), status: 422)
-      when 429 then raise_rate_limit_error(response)
-      when 500..599 then raise ServerError.new("Adobe API server error (HTTP #{response.status})",
-                                               status: response.status)
-      else raise Error.new("Unexpected response status: #{response.status}", status: response.status)
+      when 400, 422
+        unprocessable_error(validation_message(response.status, adobe_message), body, status: response.status)
+      when 401
+        AuthenticationError.new('Unauthorized — check your Adobe IMS token', status: 401)
+      when 403
+        AuthorizationError.new('Forbidden — token lacks permission for this resource', status: 403)
+      when 404
+        ResourceNotFoundError.new("Resource not found: #{response.env.url.path}", status: 404)
+      when 405
+        method_not_allowed_error(response)
+      when 409
+        conflict_error(adobe_message)
+      when 500..599
+        ServerError.new("Adobe API server error (HTTP #{response.status})", status: response.status)
+      else
+        Error.new("Unexpected response status: #{response.status}", status: response.status)
       end
+    end
+
+    ##
+    # Returns the default validation message for 400/422 responses.
+    #
+    # @param status        [Integer]
+    # @param adobe_message [String, nil]
+    # @return [String]
+    #
+    def validation_message(status, adobe_message)
+      return adobe_message if adobe_message
+      return 'Bad request — check payload structure and required relationships' if status == 400
+
+      'Validation failed'
+    end
+
+    ##
+    # Builds a validation-style error with the Adobe errors array attached.
+    #
+    # @param message [String]
+    # @param body    [Hash, nil]
+    # @param status  [Integer]
+    # @return [ReactorSDK::UnprocessableEntityError]
+    #
+    def unprocessable_error(message, body, status:)
+      UnprocessableEntityError.new(
+        message,
+        validation_errors: Array(body&.dig('errors')),
+        status: status
+      )
+    end
+
+    ##
+    # Builds a 405 error with request context.
+    #
+    # @param response [Faraday::Response]
+    # @return [ReactorSDK::Error]
+    #
+    def method_not_allowed_error(response)
+      Error.new(
+        'Method not allowed — check the correct endpoint for this operation. ' \
+        "Adobe returned 405 for #{response.env.method.upcase} #{response.env.url.path}",
+        status: 405
+      )
+    end
+
+    ##
+    # Builds a 409 conflict error with Launch-specific guidance.
+    #
+    # @param adobe_message [String, nil]
+    # @return [ReactorSDK::Error]
+    #
+    def conflict_error(adobe_message)
+      Error.new(
+        adobe_message || 'Conflict — resource may need to be revised before this operation. ' \
+                         'Call revise() on the resource before adding it to a library.',
+        status: 409
+      )
+    end
+
+    ##
+    # Extracts a human-readable message from the Adobe error response body.
+    # Adobe returns errors in JSON:API format under the "errors" array.
+    #
+    # @param body [Hash, nil] Parsed response body
+    # @return [String, nil] First error detail or title, or nil if not present
+    #
+    def extract_adobe_message(body)
+      return nil unless body.is_a?(Hash)
+
+      errors = body['errors']
+      return nil unless errors.is_a?(Array) && errors.any?
+
+      first = errors.first
+      first['detail'] || first['title']
     end
 
     ##

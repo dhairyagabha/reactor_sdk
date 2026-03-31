@@ -17,6 +17,7 @@ AllCops:
   Exclude:
     - "vendor/**/*"
     - "bin/**/*"
+    - "sandbox_test.rb"
 
 # ── Metrics ──────────────────────────────────────────────────────
 

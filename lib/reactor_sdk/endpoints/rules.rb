@@ -9,6 +9,9 @@
 #   to a property and are versioned — the revisions endpoint provides
 #   point-in-time snapshots used by the diff engine.
 #
+#   Important: rules must be revised before they can be added to a library.
+#   Call revise(rule_id) after creating or updating a rule.
+#
 # @domain Endpoints
 # @see https://developer.adobe.com/experience-platform/documentation/tags/api/endpoints/rules/
 #
@@ -25,8 +28,7 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the property does not exist
       #
       def list_for_property(property_id)
-        records = @paginator.all("/properties/#{property_id}/rules")
-        records.map { |r| @parser.parse(r, Resources::Rule) }
+        list_resources("/properties/#{property_id}/rules", Resources::Rule)
       end
 
       ##
@@ -37,8 +39,37 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the rule does not exist
       #
       def find(rule_id)
-        response = @connection.get("/rules/#{rule_id}")
-        @parser.parse(response['data'], Resources::Rule)
+        fetch_resource("/rules/#{rule_id}", Resources::Rule)
+      end
+
+      ##
+      # Retrieves the property that owns a rule.
+      #
+      # @param rule_id [String] Adobe rule ID
+      # @return [ReactorSDK::Resources::Property]
+      #
+      def property(rule_id)
+        fetch_resource("/rules/#{rule_id}/property", Resources::Property)
+      end
+
+      ##
+      # Lists the libraries containing a rule.
+      #
+      # @param rule_id [String] Adobe rule ID
+      # @return [Array<ReactorSDK::Resources::Library>]
+      #
+      def libraries(rule_id)
+        list_resources("/rules/#{rule_id}/libraries", Resources::Library)
+      end
+
+      ##
+      # Retrieves the origin revision head for a rule.
+      #
+      # @param rule_id [String] Adobe rule ID
+      # @return [ReactorSDK::Resources::Rule]
+      #
+      def origin(rule_id)
+        fetch_resource("/rules/#{rule_id}/origin", Resources::Rule)
       end
 
       ##
@@ -51,9 +82,12 @@ module ReactorSDK
       # @raise [ReactorSDK::UnprocessableEntityError] if attributes are invalid
       #
       def create(property_id:, name:, enabled: true)
-        payload  = build_payload('rules', { name: name, enabled: enabled })
-        response = @connection.post("/properties/#{property_id}/rules", payload)
-        @parser.parse(response['data'], Resources::Rule)
+        create_resource(
+          "/properties/#{property_id}/rules",
+          'rules',
+          Resources::Rule,
+          attributes: { name: name, enabled: enabled }
+        )
       end
 
       ##
@@ -65,9 +99,31 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the rule does not exist
       #
       def update(rule_id, attributes)
-        payload  = build_payload('rules', attributes, id: rule_id)
-        response = @connection.patch("/rules/#{rule_id}", payload)
-        @parser.parse(response['data'], Resources::Rule)
+        update_resource("/rules/#{rule_id}", rule_id, 'rules', Resources::Rule, attributes: attributes)
+      end
+
+      ##
+      # Revises a rule so it can be added to a library.
+      #
+      # Adobe Launch requires every resource to be explicitly revised before
+      # it can be added to a library. A newly created or updated rule cannot
+      # be added to a library until revised.
+      #
+      # Always call revise after create or update, before libraries.add_rules.
+      #
+      # @param rule_id [String] Adobe rule ID
+      # @return [ReactorSDK::Resources::Rule] The revised rule
+      # @raise [ReactorSDK::ResourceNotFoundError] if the rule does not exist
+      #
+      def revise(rule_id)
+        update_resource(
+          "/rules/#{rule_id}",
+          rule_id,
+          'rules',
+          Resources::Rule,
+          attributes: {},
+          meta: { action: 'revise' }
+        )
       end
 
       ##
@@ -78,8 +134,18 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the rule does not exist
       #
       def delete(rule_id)
-        @connection.delete("/rules/#{rule_id}")
-        nil
+        delete_resource("/rules/#{rule_id}")
+      end
+
+      ##
+      # Creates a note on a rule.
+      #
+      # @param rule_id [String] Adobe rule ID
+      # @param text    [String] Note body text
+      # @return [ReactorSDK::Resources::Note]
+      #
+      def create_note(rule_id, text)
+        create_note_for_path("/rules/#{rule_id}/notes", text)
       end
     end
   end

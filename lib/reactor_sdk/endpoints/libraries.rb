@@ -34,6 +34,20 @@ module ReactorSDK
       # Development is at the bottom — Production is at the top.
       UPSTREAM_STAGE_ORDER = %w[development staging production].freeze
 
+      # Maps user-facing library states to the Reactor API transition actions.
+      TRANSITION_ACTIONS = {
+        'development' => 'develop',
+        'develop' => 'develop',
+        'submitted' => 'submit',
+        'submit' => 'submit',
+        'approved' => 'approve',
+        'approve' => 'approve',
+        'rejected' => 'reject',
+        'reject' => 'reject',
+        'published' => 'publish',
+        'publish' => 'publish'
+      }.freeze
+
       # ── List and find ───────────────────────────────────────────
 
       ##
@@ -287,7 +301,13 @@ module ReactorSDK
       # @raise [ReactorSDK::UnprocessableEntityError] if the transition is invalid
       #
       def transition(library_id, state:)
-        payload  = build_payload('libraries', { state: state }, id: library_id)
+        payload = {
+          data: {
+            id: library_id,
+            type: 'libraries',
+            meta: { action: normalize_transition_action(state) }
+          }
+        }
         response = @connection.patch("/libraries/#{library_id}", payload)
         @parser.parse(response['data'], Resources::Library)
       end
@@ -401,6 +421,20 @@ module ReactorSDK
         return [] if current_index.nil?
 
         UPSTREAM_STAGE_ORDER[(current_index + 1)..]
+      end
+
+      ##
+      # Converts a library state or action alias into the API's expected action.
+      #
+      # @param state [String, Symbol]
+      # @return [String]
+      # @raise [ArgumentError] if the transition is unknown
+      #
+      def normalize_transition_action(state)
+        TRANSITION_ACTIONS.fetch(state.to_s) do
+          valid = TRANSITION_ACTIONS.keys.uniq.sort.join(', ')
+          raise ArgumentError, "Unknown library transition: #{state.inspect}. Expected one of: #{valid}"
+        end
       end
     end
   end

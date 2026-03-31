@@ -64,6 +64,10 @@ RSpec.describe ReactorSDK::Client do
       expect(client.environments).to be_a(ReactorSDK::Endpoints::Environments)
     end
 
+    it 'exposes hosts endpoint' do
+      expect(client.hosts).to be_a(ReactorSDK::Endpoints::Hosts)
+    end
+
     it 'exposes rules endpoint' do
       expect(client.rules).to be_a(ReactorSDK::Endpoints::Rules)
     end

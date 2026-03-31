@@ -51,14 +51,18 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
   end
 
   ##
-  # Builds a list response of revisions — no included array.
+  # Builds a list response of versioned resources returned by the
+  # resource-scoped /revisions endpoints.
   #
-  def revision_list_response(count: 2)
+  def versioned_resource_list_response(type:, attributes:, prefix:, count: 2)
     items = count.times.map do |i|
       {
-        'id' => "RE#{i + 1}",
-        'type' => 'revisions',
-        'attributes' => revision_attributes.merge('activity_type' => i.zero? ? 'updated' : 'created'),
+        'id' => "#{prefix}#{i + 1}",
+        'type' => type,
+        'attributes' => attributes.merge(
+          'created_at' => "2024-06-0#{i + 1}T14:32:00.000Z",
+          'updated_at' => "2024-06-0#{i + 1}T14:32:00.000Z"
+        ),
         'relationships' => {}
       }
     end
@@ -191,14 +195,19 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
       stub_request(:get, 'https://reactor.adobe.io/rules/RL123/revisions?page%5Bsize%5D=100')
         .to_return(
           status: 200,
-          body: revision_list_response(count: 2),
+          body: versioned_resource_list_response(
+            type: 'rules',
+            prefix: 'RL',
+            attributes: rule_attributes,
+            count: 2
+          ),
           headers: { 'Content-Type' => 'application/json' }
         )
     end
 
-    it 'returns an array of Revision resources' do
+    it 'returns an array of Rule resources' do
       result = client.revisions.list_for_rule('RL123')
-      expect(result).to all(be_a(ReactorSDK::Resources::Revision))
+      expect(result).to all(be_a(ReactorSDK::Resources::Rule))
     end
 
     it 'returns the correct number of revisions' do
@@ -206,15 +215,15 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
       expect(result.length).to eq(2)
     end
 
-    it 'returns revision metadata without entity snapshots' do
+    it 'preserves the rule attributes on each revision' do
       result = client.revisions.list_for_rule('RL123')
-      expect(result.first.entity_snapshot).to eq({})
+      expect(result.first.name).to eq('Order Confirmation')
+      expect(result.first.enabled?).to be(true)
     end
 
-    it 'maps activity_type on each revision' do
+    it 'returns versioned rule ids' do
       result = client.revisions.list_for_rule('RL123')
-      expect(result.first.activity_type).to eq('updated')
-      expect(result.last.activity_type).to eq('created')
+      expect(result.map(&:id)).to eq(%w[RL1 RL2])
     end
   end
 
@@ -225,19 +234,34 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
       stub_request(:get, 'https://reactor.adobe.io/data_elements/DE123/revisions?page%5Bsize%5D=100')
         .to_return(
           status: 200,
-          body: revision_list_response(count: 1),
+          body: versioned_resource_list_response(
+            type: 'data_elements',
+            prefix: 'DE',
+            attributes: {
+              'name' => 'Page Name',
+              'delegate_descriptor_id' => 'core::dataElements::custom-code',
+              'settings' => '{"source":"return document.title;"}',
+              'enabled' => true
+            },
+            count: 1
+          ),
           headers: { 'Content-Type' => 'application/json' }
         )
     end
 
-    it 'returns an array of Revision resources' do
+    it 'returns an array of DataElement resources' do
       result = client.revisions.list_for_data_element('DE123')
-      expect(result).to all(be_a(ReactorSDK::Resources::Revision))
+      expect(result).to all(be_a(ReactorSDK::Resources::DataElement))
     end
 
     it 'returns the correct number of revisions' do
       result = client.revisions.list_for_data_element('DE123')
       expect(result.length).to eq(1)
+    end
+
+    it 'preserves data element settings on each revision' do
+      result = client.revisions.list_for_data_element('DE123')
+      expect(result.first.parsed_settings['source']).to eq('return document.title;')
     end
   end
 
@@ -248,19 +272,33 @@ RSpec.describe ReactorSDK::Endpoints::Revisions do
       stub_request(:get, 'https://reactor.adobe.io/extensions/EX123/revisions?page%5Bsize%5D=100')
         .to_return(
           status: 200,
-          body: revision_list_response(count: 3),
+          body: versioned_resource_list_response(
+            type: 'extensions',
+            prefix: 'EX',
+            attributes: {
+              'name' => 'Core',
+              'delegate_descriptor_id' => 'core::extensionConfiguration::config',
+              'settings' => '{}'
+            },
+            count: 3
+          ),
           headers: { 'Content-Type' => 'application/json' }
         )
     end
 
-    it 'returns an array of Revision resources' do
+    it 'returns an array of Extension resources' do
       result = client.revisions.list_for_extension('EX123')
-      expect(result).to all(be_a(ReactorSDK::Resources::Revision))
+      expect(result).to all(be_a(ReactorSDK::Resources::Extension))
     end
 
     it 'returns the correct number of revisions' do
       result = client.revisions.list_for_extension('EX123')
       expect(result.length).to eq(3)
+    end
+
+    it 'preserves the delegate descriptor on each revision' do
+      result = client.revisions.list_for_extension('EX123')
+      expect(result.first.delegate_descriptor_id).to eq('core::extensionConfiguration::config')
     end
   end
 end
