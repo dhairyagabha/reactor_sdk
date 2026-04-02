@@ -148,4 +148,34 @@ RSpec.describe ReactorSDK::Endpoints::Builds do
       expect(result.last.failed?).to be(true)
     end
   end
+
+  describe '#republish' do
+    before do
+      stub_request(:patch, 'https://reactor.adobe.io/builds/BL123')
+        .to_return(
+          status: 200,
+          body: jsonapi_response(type: 'builds', id: 'BL123', attributes: pending_build_attributes).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    it 'sends the republish action payload' do
+      result = client.builds.republish('BL123')
+
+      expect(result).to be_a(ReactorSDK::Resources::Build)
+      expect(WebMock).to(
+        have_requested(:patch, 'https://reactor.adobe.io/builds/BL123')
+          .with do |request|
+            JSON.parse(request.body) == {
+              'data' => {
+                'type' => 'builds',
+                'attributes' => {},
+                'id' => 'BL123',
+                'meta' => { 'action' => 'republish' }
+              }
+            }
+          end
+      )
+    end
+  end
 end

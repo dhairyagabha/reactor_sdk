@@ -13,26 +13,38 @@ Handles OAuth Server-to-Server authentication, JSON:API response parsing, cursor
 - [Authentication](#authentication)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
+- [Coverage status](#coverage-status)
 - [Endpoints](#endpoints)
   - [Companies](#companies)
   - [Properties](#properties)
+  - [App Configurations](#app-configurations)
+  - [Callbacks](#callbacks)
+  - [Secrets](#secrets)
   - [Environments](#environments)
+  - [Hosts](#hosts)
   - [Rules](#rules)
   - [Rule Components](#rule-components)
   - [Data Elements](#data-elements)
   - [Extensions](#extensions)
+  - [Extension Packages](#extension-packages)
+  - [Extension Package Usage Authorizations](#extension-package-usage-authorizations)
   - [Libraries](#libraries)
   - [Builds](#builds)
   - [Revisions](#revisions)
   - [Audit Events](#audit-events)
+  - [Profiles](#profiles)
+  - [Search](#search)
+  - [Notes](#notes)
 - [Resources](#resources)
   - [parsed\_settings](#parsed_settings)
+  - [SearchResults](#searchresults)
   - [LibraryWithResources](#librarywithresources)
   - [Revision snapshots](#revision-snapshots)
   - [Upstream library resolution](#upstream-library-resolution)
 - [Error handling](#error-handling)
 - [Rails integration](#rails-integration)
 - [Development](#development)
+- [Security](#security)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -50,7 +62,7 @@ Handles OAuth Server-to-Server authentication, JSON:API response parsing, cursor
 
 Add to your `Gemfile`:
 ```ruby
-gem "reactor-sdk"
+gem "reactor_sdk"
 ```
 
 Then run:
@@ -60,8 +72,10 @@ bundle install
 
 Or install directly:
 ```bash
-gem install reactor-sdk
+gem install reactor_sdk
 ```
+
+The published gem name and the `require` path are both `reactor_sdk`.
 
 ---
 
@@ -143,6 +157,35 @@ client = ReactorSDK::Client.new(
 
 ---
 
+## Coverage status
+
+Checked against Adobe's official Reactor OpenAPI on March 31, 2026, ReactorSDK now exposes the currently documented Reactor endpoint families:
+
+- Companies
+- Properties
+- App configurations
+- Callbacks
+- Secrets
+- Environments
+- Hosts
+- Rules
+- Rule components
+- Data elements
+- Extensions
+- Extension packages
+- Extension package usage authorizations
+- Libraries
+- Builds
+- Revisions
+- Notes
+- Audit events
+- Profiles
+- Search
+
+The previously missing endpoint families are now implemented, and audit event listing has been aligned with Adobe's current global `/audit_events` route instead of the older property-scoped path. Adobe can still add new routes over time, so it is still worth checking the official spec again before any release that aims for strict parity.
+
+---
+
 ## Endpoints
 
 All list methods follow pagination automatically. You never need to handle cursors or make multiple requests — every list method returns all records as a single flat array.
@@ -184,6 +227,51 @@ property = client.properties.update("PR123", { name: "Updated Name" })
 client.properties.delete("PR123")
 ```
 
+### App Configurations
+```ruby
+# List app configurations for a company
+configs = client.app_configurations.list_for_company("CO123")
+puts configs.first.name
+
+# Find an app configuration
+config = client.app_configurations.find("AC123")
+puts config.platform
+
+# Create an app configuration
+config = client.app_configurations.create(
+  company_id: "CO123",
+  attributes: {
+    name: "iOS Push",
+    app_id: "com.example.app",
+    platform: "mobile"
+  }
+)
+
+# Update and delete
+client.app_configurations.update("AC123", name: "Updated iOS Push")
+client.app_configurations.delete("AC123")
+```
+
+### Callbacks
+```ruby
+# List callbacks for a property
+callbacks = client.callbacks.list_for_property("PR123")
+puts callbacks.first.url
+
+# Create a callback subscription
+callback = client.callbacks.create(
+  property_id: "PR123",
+  attributes: {
+    url: "https://example.com/adobe/reactor/callbacks",
+    subscriptions: ["build.created", "build.completed"]
+  }
+)
+
+# Update and delete
+client.callbacks.update("CB123", url: "https://example.com/new-callback")
+client.callbacks.delete("CB123")
+```
+
 ### Environments
 ```ruby
 # List all environments for a property
@@ -196,14 +284,66 @@ puts environment.stage     # => "development"
 puts environment.archived? # => false
 
 # Create a personal developer sandbox environment
+host = client.hosts.list_for_property("PR123").first
 environment = client.environments.create(
   property_id: "PR123",
   name:        "jsmith-dev",
-  stage:       "development"
+  stage:       "development",
+  host_id:     host.id
 )
 
 # Delete an environment
 client.environments.delete("EN123")
+```
+
+### Secrets
+```ruby
+# List secrets for a property or environment
+property_secrets = client.secrets.list_for_property("PR123")
+environment_secrets = client.secrets.list_for_environment("EN123")
+
+# Create a secret for a specific environment
+secret = client.secrets.create(
+  property_id: "PR123",
+  environment_id: "EN123",
+  attributes: {
+    name: "Adobe IO OAuth Secret",
+    type_of: "oauth2",
+    credentials: {
+      access_token: "redacted"
+    }
+  }
+)
+
+# Trigger Adobe's test / retry actions
+client.secrets.test("SE123", type_of: "oauth2")
+client.secrets.retry("SE123", type_of: "oauth2")
+
+# Traverse related resources
+client.secrets.environment("SE123")
+client.secrets.property("SE123")
+client.secrets.data_elements("SE123")
+```
+
+### Hosts
+```ruby
+# List all hosts for a property
+hosts = client.hosts.list_for_property("PR123")
+puts hosts.first.name
+
+# Find or create a host
+host = client.hosts.find("HT123")
+host = client.hosts.create(
+  property_id: "PR123",
+  attributes: {
+    name: "SFTP Host",
+    type_of: "sftp"
+  }
+)
+
+# Update and delete
+client.hosts.update("HT123", name: "Updated SFTP Host")
+client.hosts.delete("HT123")
 ```
 
 ### Rules
@@ -261,11 +401,16 @@ end
 element = client.data_elements.find("DE123")
 
 # Create a data element
+core_extension = client.extensions
+  .list_for_property("PR123")
+  .find { |ext| ext.delegate_descriptor_id.start_with?("core::") }
+
 element = client.data_elements.create(
   property_id:            "PR123",
   name:                   "Page Name",
   delegate_descriptor_id: "core::dataElements::custom-code",
   settings:               { source: "return digitalData.page.name;" }.to_json,
+  extension_id:           core_extension.id,
   enabled:                true
 )
 
@@ -284,6 +429,44 @@ extensions.each { |e| puts e.delegate_descriptor_id }
 
 # Find an extension
 extension = client.extensions.find("EX123")
+```
+
+### Extension Packages
+```ruby
+# List published / available extension packages
+packages = client.extension_packages.list
+puts packages.first.name
+
+# Upload a new package archive
+package = client.extension_packages.create(package_path: "tmp/my_extension_package.zip")
+
+# Upload a new version of an existing package
+package = client.extension_packages.update(
+  "EP123",
+  package_path: "tmp/my_extension_package_v2.zip"
+)
+
+# Package lifecycle and relationships
+client.extension_packages.private_release("EP123")
+client.extension_packages.discontinue("EP123")
+client.extension_packages.versions("EP123")
+client.extension_packages.usage_authorizations("EP123")
+```
+
+### Extension Package Usage Authorizations
+```ruby
+# List all usage authorizations visible to the current credentials
+authorizations = client.extension_package_usage_authorizations.list
+
+# Grant an organization access to a private package
+authorization = client.extension_package_usage_authorizations.create(
+  extension_package_id: "EP123",
+  authorized_org_id: "ABCDEF0123456789@AdobeOrg"
+)
+
+# Change authorization state or revoke it
+client.extension_package_usage_authorizations.update("UA123", state: "approved")
+client.extension_package_usage_authorizations.delete("UA123")
 ```
 
 ### Libraries
@@ -445,15 +628,57 @@ puts revision.entity_snapshot # => { "name" => "Order Confirmation", "enabled" =
 
 ### Audit Events
 ```ruby
-# List all audit events for a property
-events = client.audit_events.list_for_property("PR123")
+# List all audit events from Adobe's current global endpoint
+events = client.audit_events.list
 events.each { |e| puts "#{e.type_of} — #{e.entity_display_name} — #{e.created_at}" }
 
 # Filter events after a specific timestamp
-events = client.audit_events.list_for_property("PR123", since: "2024-06-01T00:00:00.000Z")
+events = client.audit_events.list(since: "2024-06-01T00:00:00.000Z")
+
+# Additional supported filters
+events = client.audit_events.list(
+  updated_at: "2024-06-01T00:00:00.000Z",
+  type_of: "property.updated"
+)
 
 # Find a specific audit event
 event = client.audit_events.find("AE123")
+```
+
+`list_for_property("PR123")` remains available as a backward-compatible wrapper, but Adobe's current official Reactor API documents the listing route as global `/audit_events`.
+
+### Profiles
+```ruby
+profile = client.profiles.current
+puts profile.email
+puts profile.display_name
+puts profile.rights.inspect
+```
+
+### Search
+```ruby
+results = client.search.perform(
+  query: "Release",
+  resource_types: %w[libraries rules callbacks],
+  size: 25
+)
+
+puts results.total_hits
+results.each { |resource| puts "#{resource.type} #{resource.id}" }
+```
+
+### Notes
+```ruby
+# Find a single note directly
+note = client.notes.find("NOTE123")
+
+# List or create notes through the owning resource endpoint
+client.properties.list_notes("PR123")
+client.properties.create_note("PR123", "Ready for review")
+
+client.rules.list_notes("RL123")
+client.rule_components.create_note("RC123", "Move this above the analytics action")
+client.secrets.create_note("SE123", "Rotate after staging validation")
 ```
 
 ---
@@ -518,6 +743,19 @@ The same method is available on `DataElement`:
 element = client.data_elements.find("DE123")
 element.parsed_settings  # => { "source" => "return digitalData.page.name;", "language" => "javascript" }
 element.settings         # => raw string unchanged
+```
+
+### SearchResults
+
+`client.search.perform` returns a `SearchResults` wrapper instead of a plain array:
+```ruby
+results = client.search.perform(query: "Checkout", resource_types: %w[rules libraries])
+
+results.total_hits  # => 7
+results.results     # => [#<Rule ...>, #<Library ...>, ...]
+results.each do |resource|
+  puts "#{resource.type} #{resource.id}"
+end
 ```
 
 ### LibraryWithResources
@@ -679,7 +917,7 @@ end
 
 ## Rails integration
 
-### Initializer
+### Optional initializer for a default client
 ```ruby
 # config/initializers/reactor_sdk.rb
 
@@ -690,6 +928,38 @@ REACTOR_CLIENT = ReactorSDK::Client.new(
   logger:        Rails.logger
 )
 ```
+
+The initializer above is only an application convenience. ReactorSDK itself does not use a global singleton internally. Every call to `ReactorSDK::Client.new` creates an independent client with its own configuration, token cache, Faraday connection, and rate limiter.
+
+### Dynamic clients from stored credentials
+```ruby
+# app/services/reactor_client_factory.rb
+
+class ReactorClientFactory
+  def self.build(credential_record, logger: Rails.logger)
+    ReactorSDK::Client.new(
+      client_id:     credential_record.client_id,
+      client_secret: credential_record.client_secret,
+      org_id:        credential_record.org_id,
+      logger:        logger
+    )
+  end
+end
+```
+
+```ruby
+# app/jobs/sync_adobe_property_job.rb
+
+class SyncAdobePropertyJob < ApplicationJob
+  def perform(adobe_credential_id)
+    credential = AdobeCredential.find(adobe_credential_id)
+    client     = ReactorClientFactory.build(credential)
+    PropertySyncService.new(org: credential.org, client: client).call
+  end
+end
+```
+
+This is the recommended pattern when your application stores multiple Adobe credential sets in the database. Build a client per credential record at the service or job boundary, rather than forcing all requests through one initializer-backed constant.
 
 ### Service object pattern
 ```ruby
@@ -790,8 +1060,15 @@ adobe:
 
 ### Setup
 ```bash
-git clone https://github.com/yourusername/reactor-sdk
-cd reactor-sdk
+git clone https://github.com/dhairyagabha/reactor_sdk
+cd reactor_sdk
+bundle install
+```
+
+If you use `rbenv`, the repository includes a pinned development Ruby in `.ruby-version`:
+```bash
+rbenv install -s "$(cat .ruby-version)"
+rbenv local "$(cat .ruby-version)"
 bundle install
 ```
 
@@ -815,6 +1092,13 @@ bundle exec rspec spec/reactor_sdk/endpoints/libraries_spec.rb
 bundle exec rubocop
 ```
 
+### Running the full quality gate
+```bash
+bundle exec rake
+```
+
+CI runs the test suite across supported Ruby versions and runs RuboCop on the primary development Ruby.
+
 ### Recording VCR cassettes against the real API
 
 By default all tests use WebMock stubs — no real API calls are made. To record new cassettes against the real Adobe API:
@@ -832,14 +1116,20 @@ VCR_RECORD=all bundle exec rspec
 
 ---
 
+## Security
+
+Please report suspected vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+---
+
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/my-feature`)
 3. Write tests for your change
 4. Make your change
-5. Ensure all tests pass (`bundle exec rspec`)
-6. Ensure RuboCop passes (`bundle exec rubocop`)
+5. Ensure the default quality gate passes (`bundle exec rake`)
+6. Update docs and changelog entries when behavior changes
 7. Open a pull request
 
 Please follow the coding standards in `CONTRIBUTING.md`.

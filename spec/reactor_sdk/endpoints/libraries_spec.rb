@@ -390,13 +390,15 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
     it 'sends the transition as a meta action' do
       client.libraries.transition('LB123', state: 'submitted')
       expect(WebMock).to have_requested(:patch, 'https://reactor.adobe.io/libraries/LB123')
-        .with(body: {
-                data: {
-                  id: 'LB123',
-                  type: 'libraries',
-                  meta: { action: 'submit' }
-                }
-              }.to_json)
+        .with(
+          body: {
+            data: {
+              id: 'LB123',
+              type: 'libraries',
+              meta: { action: 'submit' }
+            }
+          }.to_json
+        )
     end
   end
 
@@ -417,6 +419,109 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
       result = client.libraries.build('LB123')
       expect(result.status).to eq('succeeded')
       expect(result.succeeded?).to be(true)
+    end
+  end
+
+  describe 'additional library operations' do
+    it 'updates and deletes a library' do
+      stub_request(:patch, 'https://reactor.adobe.io/libraries/LB123')
+        .to_return(status: 200, body: single_response, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:delete, 'https://reactor.adobe.io/libraries/LB123')
+        .to_return(status: 204, body: '')
+
+      expect(client.libraries.update('LB123', name: 'Release 1.0')).to be_a(ReactorSDK::Resources::Library)
+      expect(client.libraries.delete('LB123')).to be_nil
+    end
+
+    it 'fetches related resources and relationship linkages' do
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/property')
+        .to_return(
+          status: 200,
+          body: jsonapi_response(
+            type: 'properties',
+            id: 'PR123',
+            attributes: { 'name' => 'Property', 'platform' => 'web' }
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/environment')
+        .to_return(
+          status: 200,
+          body: jsonapi_response(
+            type: 'environments',
+            id: 'EN123',
+            attributes: { 'name' => 'Dev', 'stage' => 'development' }
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/upstream_library')
+        .to_return(status: 200, body: single_response, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/rules?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'rules',
+            items: [{ id: 'RL123', attributes: { 'name' => 'Rule', 'enabled' => true } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/data_elements?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'data_elements',
+            items: [{ id: 'DE123', attributes: { 'name' => 'DE' } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/extensions?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'extensions',
+            items: [{ id: 'EX123', attributes: { 'name' => 'Core' } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/relationships/rules')
+        .to_return(status: 200, body: { data: [{ id: 'RL123', type: 'rules' }] }.to_json)
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/relationships/data_elements')
+        .to_return(status: 200, body: { data: [{ id: 'DE123', type: 'data_elements' }] }.to_json)
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/relationships/extensions')
+        .to_return(status: 200, body: { data: [{ id: 'EX123', type: 'extensions' }] }.to_json)
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/relationships/environment')
+        .to_return(status: 200, body: { data: { id: 'EN123', type: 'environments' } }.to_json)
+      stub_request(:delete, 'https://reactor.adobe.io/libraries/LB123/relationships/environment')
+        .to_return(status: 204, body: '')
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123/notes?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'notes',
+            items: [{ id: 'NT123', attributes: { 'text' => 'Library note' } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:post, 'https://reactor.adobe.io/libraries/LB123/notes')
+        .to_return(
+          status: 201,
+          body: jsonapi_response(type: 'notes', id: 'NT123', attributes: { 'text' => 'Library note' }).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect(client.libraries.property('LB123')).to be_a(ReactorSDK::Resources::Property)
+      expect(client.libraries.environment('LB123')).to be_a(ReactorSDK::Resources::Environment)
+      expect(client.libraries.upstream_library('LB123')).to be_a(ReactorSDK::Resources::Library)
+      expect(client.libraries.rules('LB123')).to all(be_a(ReactorSDK::Resources::Rule))
+      expect(client.libraries.data_elements('LB123')).to all(be_a(ReactorSDK::Resources::DataElement))
+      expect(client.libraries.extensions('LB123')).to all(be_a(ReactorSDK::Resources::Extension))
+      expect(client.libraries.rule_relationships('LB123')).to eq([{ 'id' => 'RL123', 'type' => 'rules' }])
+      expect(client.libraries.data_element_relationships('LB123')).to eq([{ 'id' => 'DE123', 'type' => 'data_elements' }])
+      expect(client.libraries.extension_relationships('LB123')).to eq([{ 'id' => 'EX123', 'type' => 'extensions' }])
+      expect(client.libraries.environment_relationship('LB123')).to eq({ 'id' => 'EN123', 'type' => 'environments' })
+      expect(client.libraries.remove_environment('LB123')).to be_nil
+      expect(client.libraries.list_notes('LB123').first).to be_a(ReactorSDK::Resources::Note)
+      expect(client.libraries.create_note('LB123', 'Library note')).to be_a(ReactorSDK::Resources::Note)
     end
   end
 

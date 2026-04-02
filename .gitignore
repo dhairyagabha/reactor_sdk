@@ -4,8 +4,10 @@
 /coverage/
 /doc/
 /pkg/
+/*.gem
 /spec/reports/
 /tmp/
+.DS_Store
 
 # rspec failure tracking
 .rspec_status

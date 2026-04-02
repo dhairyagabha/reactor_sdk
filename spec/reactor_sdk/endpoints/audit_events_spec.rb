@@ -38,39 +38,39 @@ RSpec.describe ReactorSDK::Endpoints::AuditEvents do
     ).to_json
   end
 
-  describe '#list_for_property' do
+  describe '#list' do
     before do
-      stub_request(:get, 'https://reactor.adobe.io/properties/PR123/audit_events?page%5Bsize%5D=100')
+      stub_request(:get, 'https://reactor.adobe.io/audit_events?page%5Bsize%5D=100')
         .to_return(status: 200, body: list_response, headers: { 'Content-Type' => 'application/json' })
     end
 
     it 'returns an array of AuditEvent resources' do
-      result = client.audit_events.list_for_property('PR123')
+      result = client.audit_events.list
       expect(result).to all(be_a(ReactorSDK::Resources::AuditEvent))
     end
 
     it 'returns the correct number of audit events' do
-      result = client.audit_events.list_for_property('PR123')
+      result = client.audit_events.list
       expect(result.length).to eq(2)
     end
 
     it 'maps attributes to Ruby methods' do
-      result = client.audit_events.list_for_property('PR123')
+      result = client.audit_events.list
       expect(result.first.type_of).to eq('rule.updated')
       expect(result.first.entity_display_name).to eq('Order Confirmation')
     end
   end
 
-  describe '#list_for_property with a since filter' do
+  describe '#list with a since filter' do
     before do
       stub_request(
         :get,
-        'https://reactor.adobe.io/properties/PR123/audit_events?page%5Bsize%5D=100&filter%5Bcreated_at%5D=GT+2024-01-01T00%3A00%3A00Z'
+        'https://reactor.adobe.io/audit_events?created_at=GT+2024-01-01T00%3A00%3A00Z&page%5Bsize%5D=100'
       ).to_return(status: 200, body: list_response, headers: { 'Content-Type' => 'application/json' })
     end
 
     it 'passes the created_at filter through to the API' do
-      result = client.audit_events.list_for_property('PR123', since: '2024-01-01T00:00:00Z')
+      result = client.audit_events.list(since: '2024-01-01T00:00:00Z')
       expect(result.length).to eq(2)
     end
   end

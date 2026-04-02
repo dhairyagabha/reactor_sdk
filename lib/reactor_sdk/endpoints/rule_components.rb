@@ -122,6 +122,57 @@ module ReactorSDK
         nil
       end
 
+      ##
+      # Retrieves the extension that owns the rule component delegate.
+      #
+      # @param rule_component_id [String]
+      # @return [ReactorSDK::Resources::Extension]
+      #
+      def extension(rule_component_id)
+        fetch_resource("/rule_components/#{rule_component_id}/extension", Resources::Extension)
+      end
+
+      ##
+      # Retrieves the origin revision head for a rule component.
+      #
+      # @param rule_component_id [String]
+      # @return [ReactorSDK::Resources::RuleComponent]
+      #
+      def origin(rule_component_id)
+        fetch_resource("/rule_components/#{rule_component_id}/origin", Resources::RuleComponent)
+      end
+
+      ##
+      # Lists rules that currently utilize a rule component.
+      #
+      # @param rule_component_id [String]
+      # @return [Array<ReactorSDK::Resources::Rule>]
+      #
+      def rules(rule_component_id)
+        list_resources("/rule_components/#{rule_component_id}/rules", Resources::Rule)
+      end
+
+      ##
+      # Lists notes attached to a rule component.
+      #
+      # @param rule_component_id [String]
+      # @return [Array<ReactorSDK::Resources::Note>]
+      #
+      def list_notes(rule_component_id)
+        list_notes_for_path("/rule_components/#{rule_component_id}/notes")
+      end
+
+      ##
+      # Creates a note on a rule component.
+      #
+      # @param rule_component_id [String]
+      # @param text [String]
+      # @return [ReactorSDK::Resources::Note]
+      #
+      def create_note(rule_component_id, text)
+        create_note_for_path("/rule_components/#{rule_component_id}/notes", text)
+      end
+
       private
 
       ##

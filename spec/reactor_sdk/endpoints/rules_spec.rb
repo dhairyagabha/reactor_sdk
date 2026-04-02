@@ -174,4 +174,35 @@ RSpec.describe ReactorSDK::Endpoints::Rules do
       expect(result).to be_nil
     end
   end
+
+  describe 'notes support' do
+    before do
+      stub_request(:get, 'https://reactor.adobe.io/rules/RL123/notes?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'notes',
+            items: [{ id: 'NT123', attributes: { 'text' => 'Rule note' } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/rules/RL123/rule_component_notes?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'rule_components',
+            items: [{ id: 'RC123', attributes: { 'name' => 'Send Beacon', 'delegate_descriptor_id' => 'core::actions::custom-code' } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    it 'lists direct rule notes' do
+      expect(client.rules.list_notes('RL123').first.text).to eq('Rule note')
+    end
+
+    it 'lists rule component notes' do
+      expect(client.rules.rule_component_notes('RL123').first).to be_a(ReactorSDK::Resources::RuleComponent)
+    end
+  end
 end

@@ -44,6 +44,24 @@ module ReactorSDK
       end
 
       ##
+      # Creates an extension within a property.
+      #
+      # @param property_id [String]
+      # @param attributes [Hash]
+      # @param relationships [Hash]
+      # @return [ReactorSDK::Resources::Extension]
+      #
+      def create(property_id:, attributes:, relationships:)
+        create_resource(
+          "/properties/#{property_id}/extensions",
+          'extensions',
+          Resources::Extension,
+          attributes: attributes,
+          relationships: relationships
+        )
+      end
+
+      ##
       # Revises an extension so it can be added to a library.
       #
       # Adobe Launch requires every resource to be explicitly revised before
@@ -56,15 +74,42 @@ module ReactorSDK
       # @raise [ReactorSDK::ResourceNotFoundError] if the extension does not exist
       #
       def revise(extension_id)
-        payload = {
-          data: {
-            id: extension_id,
-            type: 'extensions',
-            meta: { action: 'revise' }
-          }
-        }
-        response = @connection.patch("/extensions/#{extension_id}", payload)
-        @parser.parse(response['data'], Resources::Extension)
+        update_resource(
+          "/extensions/#{extension_id}",
+          extension_id,
+          'extensions',
+          Resources::Extension,
+          attributes: {},
+          meta: { action: 'revise' }
+        )
+      end
+
+      def delete(extension_id)
+        delete_resource("/extensions/#{extension_id}")
+      end
+
+      def extension_package(extension_id)
+        fetch_resource("/extensions/#{extension_id}/extension_package", Resources::ExtensionPackage)
+      end
+
+      def libraries(extension_id)
+        list_resources("/extensions/#{extension_id}/libraries", Resources::Library)
+      end
+
+      def property(extension_id)
+        fetch_resource("/extensions/#{extension_id}/property", Resources::Property)
+      end
+
+      def origin(extension_id)
+        fetch_resource("/extensions/#{extension_id}/origin", Resources::Extension)
+      end
+
+      def list_notes(extension_id)
+        list_notes_for_path("/extensions/#{extension_id}/notes")
+      end
+
+      def create_note(extension_id, text)
+        create_note_for_path("/extensions/#{extension_id}/notes", text)
       end
     end
   end

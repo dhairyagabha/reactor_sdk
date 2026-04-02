@@ -17,7 +17,6 @@ AllCops:
   Exclude:
     - "vendor/**/*"
     - "bin/**/*"
-    - "sandbox_test.rb"
 
 # ── Metrics ──────────────────────────────────────────────────────
 
@@ -85,6 +84,9 @@ RSpec/NestedGroups:
   Max: 5
 
 Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+Gemspec/RequireMFA:
   Enabled: false
 
 RSpec/MultipleMemoizedHelpers:

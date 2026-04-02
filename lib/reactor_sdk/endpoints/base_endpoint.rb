@@ -106,6 +106,19 @@ module ReactorSDK
       end
 
       ##
+      # Fetches and parses a heterogeneous resource collection using
+      # each record's JSON:API type to choose the SDK class.
+      #
+      # @param path [String]
+      # @param params [Hash]
+      # @return [Array<ReactorSDK::Resources::BaseResource>]
+      #
+      def list_resources_auto(path, params: {})
+        records = @paginator.all(path, params: params)
+        @parser.parse_many_auto(records)
+      end
+
+      ##
       # Creates and parses a single resource.
       #
       # @param path           [String]
@@ -178,6 +191,16 @@ module ReactorSDK
       #
       def create_note_for_path(path, text)
         create_resource(path, 'notes', Resources::Note, attributes: { text: text })
+      end
+
+      ##
+      # Lists note resources for a notable resource path.
+      #
+      # @param path [String]
+      # @return [Array<ReactorSDK::Resources::Note>]
+      #
+      def list_notes_for_path(path)
+        list_resources(path, Resources::Note)
       end
     end
   end

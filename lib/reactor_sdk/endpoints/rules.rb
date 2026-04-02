@@ -147,6 +147,26 @@ module ReactorSDK
       def create_note(rule_id, text)
         create_note_for_path("/rules/#{rule_id}/notes", text)
       end
+
+      ##
+      # Lists notes attached directly to a rule.
+      #
+      # @param rule_id [String]
+      # @return [Array<ReactorSDK::Resources::Note>]
+      #
+      def list_notes(rule_id)
+        list_notes_for_path("/rules/#{rule_id}/notes")
+      end
+
+      ##
+      # Lists rule components associated with the rule's component notes route.
+      #
+      # @param rule_id [String]
+      # @return [Array<ReactorSDK::Resources::RuleComponent>]
+      #
+      def rule_component_notes(rule_id)
+        list_resources("/rules/#{rule_id}/rule_component_notes", Resources::RuleComponent)
+      end
     end
   end
 end

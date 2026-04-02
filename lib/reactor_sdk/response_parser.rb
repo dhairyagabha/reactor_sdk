@@ -22,6 +22,28 @@
 
 module ReactorSDK
   class ResponseParser
+    TYPE_REGISTRY = {
+      'app_configurations' => Resources::AppConfiguration,
+      'audit_events' => Resources::AuditEvent,
+      'builds' => Resources::Build,
+      'callbacks' => Resources::Callback,
+      'companies' => Resources::Company,
+      'data_elements' => Resources::DataElement,
+      'environments' => Resources::Environment,
+      'extension_package_usage_authorizations' => Resources::ExtensionPackageUsageAuthorization,
+      'extension_packages' => Resources::ExtensionPackage,
+      'extensions' => Resources::Extension,
+      'hosts' => Resources::Host,
+      'libraries' => Resources::Library,
+      'notes' => Resources::Note,
+      'profiles' => Resources::Profile,
+      'properties' => Resources::Property,
+      'revisions' => Resources::Revision,
+      'rule_components' => Resources::RuleComponent,
+      'rules' => Resources::Rule,
+      'secrets' => Resources::Secret
+    }.freeze
+
     ##
     # Parses a single JSON:API resource hash into a typed resource object.
     #
@@ -62,6 +84,30 @@ module ReactorSDK
     #
     def parse_many(data_array, resource_class, response: nil)
       Array(data_array).map { |data| parse(data, resource_class, response: response) }
+    end
+
+    ##
+    # Parses a single resource into the best matching SDK class
+    # using its JSON:API type.
+    #
+    # @param data [Hash]
+    # @param response [Hash, nil]
+    # @return [ReactorSDK::Resources::BaseResource]
+    #
+    def parse_auto(data, response: nil)
+      resource_class = TYPE_REGISTRY.fetch(data.fetch('type'), Resources::BaseResource)
+      parse(data, resource_class, response: response)
+    end
+
+    ##
+    # Parses a heterogeneous collection into typed SDK resources.
+    #
+    # @param data_array [Array<Hash>]
+    # @param response [Hash, nil]
+    # @return [Array<ReactorSDK::Resources::BaseResource>]
+    #
+    def parse_many_auto(data_array, response: nil)
+      Array(data_array).map { |data| parse_auto(data, response: response) }
     end
 
     private

@@ -26,11 +26,43 @@
 
 module ReactorSDK
   class Client
+    ENDPOINT_CLASSES = {
+      companies: Endpoints::Companies,
+      properties: Endpoints::Properties,
+      app_configurations: Endpoints::AppConfigurations,
+      callbacks: Endpoints::Callbacks,
+      secrets: Endpoints::Secrets,
+      environments: Endpoints::Environments,
+      hosts: Endpoints::Hosts,
+      rules: Endpoints::Rules,
+      rule_components: Endpoints::RuleComponents,
+      data_elements: Endpoints::DataElements,
+      extensions: Endpoints::Extensions,
+      extension_packages: Endpoints::ExtensionPackages,
+      extension_package_usage_authorizations: Endpoints::ExtensionPackageUsageAuthorizations,
+      libraries: Endpoints::Libraries,
+      builds: Endpoints::Builds,
+      audit_events: Endpoints::AuditEvents,
+      revisions: Endpoints::Revisions,
+      profiles: Endpoints::Profiles,
+      search: Endpoints::Search,
+      notes: Endpoints::Notes
+    }.freeze
+
     # @return [ReactorSDK::Endpoints::Companies]
     attr_reader :companies
 
     # @return [ReactorSDK::Endpoints::Properties]
     attr_reader :properties
+
+    # @return [ReactorSDK::Endpoints::AppConfigurations]
+    attr_reader :app_configurations
+
+    # @return [ReactorSDK::Endpoints::Callbacks]
+    attr_reader :callbacks
+
+    # @return [ReactorSDK::Endpoints::Secrets]
+    attr_reader :secrets
 
     # @return [ReactorSDK::Endpoints::Environments]
     attr_reader :environments
@@ -50,6 +82,12 @@ module ReactorSDK
     # @return [ReactorSDK::Endpoints::Extensions]
     attr_reader :extensions
 
+    # @return [ReactorSDK::Endpoints::ExtensionPackages]
+    attr_reader :extension_packages
+
+    # @return [ReactorSDK::Endpoints::ExtensionPackageUsageAuthorizations]
+    attr_reader :extension_package_usage_authorizations
+
     # @return [ReactorSDK::Endpoints::Libraries]
     attr_reader :libraries
 
@@ -61,6 +99,15 @@ module ReactorSDK
 
     # @return [ReactorSDK::Endpoints::Revisions]
     attr_reader :revisions
+
+    # @return [ReactorSDK::Endpoints::Profiles]
+    attr_reader :profiles
+
+    # @return [ReactorSDK::Endpoints::Search]
+    attr_reader :search
+
+    # @return [ReactorSDK::Endpoints::Notes]
+    attr_reader :notes
 
     # @return [ReactorSDK::Configuration]
     attr_reader :config
@@ -131,18 +178,9 @@ module ReactorSDK
         parser: @parser
       }
 
-      @companies       = Endpoints::Companies.new(**deps)
-      @properties      = Endpoints::Properties.new(**deps)
-      @environments    = Endpoints::Environments.new(**deps)
-      @hosts           = Endpoints::Hosts.new(**deps)
-      @rules           = Endpoints::Rules.new(**deps)
-      @rule_components = Endpoints::RuleComponents.new(**deps)
-      @data_elements   = Endpoints::DataElements.new(**deps)
-      @extensions      = Endpoints::Extensions.new(**deps)
-      @libraries       = Endpoints::Libraries.new(**deps)
-      @builds          = Endpoints::Builds.new(**deps)
-      @audit_events    = Endpoints::AuditEvents.new(**deps)
-      @revisions       = Endpoints::Revisions.new(**deps)
+      ENDPOINT_CLASSES.each do |name, endpoint_class|
+        instance_variable_set(:"@#{name}", endpoint_class.new(**deps))
+      end
     end
   end
 end

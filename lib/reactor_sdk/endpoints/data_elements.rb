@@ -131,6 +131,27 @@ module ReactorSDK
         nil
       end
 
+      ##
+      # Lists notes attached to a data element.
+      #
+      # @param data_element_id [String]
+      # @return [Array<ReactorSDK::Resources::Note>]
+      #
+      def list_notes(data_element_id)
+        list_notes_for_path("/data_elements/#{data_element_id}/notes")
+      end
+
+      ##
+      # Creates a note on a data element.
+      #
+      # @param data_element_id [String]
+      # @param text [String]
+      # @return [ReactorSDK::Resources::Note]
+      #
+      def create_note(data_element_id, text)
+        create_note_for_path("/data_elements/#{data_element_id}/notes", text)
+      end
+
       private
 
       ##

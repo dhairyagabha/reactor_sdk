@@ -202,4 +202,32 @@ RSpec.describe ReactorSDK::Endpoints::DataElements do
       expect(result).to be_nil
     end
   end
+
+  describe 'notes support' do
+    before do
+      stub_request(:get, 'https://reactor.adobe.io/data_elements/DE123/notes?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'notes',
+            items: [{ id: 'NT123', attributes: { 'text' => 'DE note' } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:post, 'https://reactor.adobe.io/data_elements/DE123/notes')
+        .to_return(
+          status: 201,
+          body: jsonapi_response(type: 'notes', id: 'NT123', attributes: { 'text' => 'DE note' }).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    it 'lists notes for a data element' do
+      expect(client.data_elements.list_notes('DE123').first).to be_a(ReactorSDK::Resources::Note)
+    end
+
+    it 'creates a note for a data element' do
+      expect(client.data_elements.create_note('DE123', 'DE note')).to be_a(ReactorSDK::Resources::Note)
+    end
+  end
 end

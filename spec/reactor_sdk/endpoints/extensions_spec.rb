@@ -105,14 +105,101 @@ RSpec.describe ReactorSDK::Endpoints::Extensions do
     it 'sends the revise action payload' do
       client.extensions.revise('EX123')
 
-      expect(WebMock).to have_requested(:patch, 'https://reactor.adobe.io/extensions/EX123')
-        .with(body: {
-          data: {
-            id: 'EX123',
-            type: 'extensions',
-            meta: { action: 'revise' }
+      expect(WebMock).to(
+        have_requested(:patch, 'https://reactor.adobe.io/extensions/EX123')
+          .with do |request|
+            JSON.parse(request.body) == {
+              'data' => {
+                'type' => 'extensions',
+                'attributes' => {},
+                'id' => 'EX123',
+                'meta' => { 'action' => 'revise' }
+              }
+            }
+          end
+      )
+    end
+  end
+
+  describe 'additional operations' do
+    it 'creates an extension with explicit relationships' do
+      stub_request(:post, 'https://reactor.adobe.io/properties/PR123/extensions')
+        .to_return(status: 201, body: single_response, headers: { 'Content-Type' => 'application/json' })
+
+      result = client.extensions.create(
+        property_id: 'PR123',
+        attributes: { settings: '{}', delegate_descriptor_id: 'core::extensionConfiguration::config' },
+        relationships: {
+          extension_package: {
+            data: { id: 'EP123', type: 'extension_packages' }
           }
-        }.to_json)
+        }
+      )
+
+      expect(result).to be_a(ReactorSDK::Resources::Extension)
+    end
+
+    it 'deletes an extension' do
+      stub_request(:delete, 'https://reactor.adobe.io/extensions/EX123')
+        .to_return(status: 204, body: '')
+
+      expect(client.extensions.delete('EX123')).to be_nil
+    end
+
+    it 'fetches related resources and notes' do
+      stub_request(:get, 'https://reactor.adobe.io/extensions/EX123/extension_package')
+        .to_return(
+          status: 200,
+          body: jsonapi_response(
+            type: 'extension_packages',
+            id: 'EP123',
+            attributes: { 'name' => 'core-package', 'version' => '1.0.0' }
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/extensions/EX123/libraries?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'libraries',
+            items: [{ id: 'LB123', attributes: { 'name' => 'Library', 'state' => 'development' } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/extensions/EX123/property')
+        .to_return(
+          status: 200,
+          body: jsonapi_response(
+            type: 'properties',
+            id: 'PR123',
+            attributes: { 'name' => 'Property', 'platform' => 'web' }
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/extensions/EX123/origin')
+        .to_return(status: 200, body: single_response, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, 'https://reactor.adobe.io/extensions/EX123/notes?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'notes',
+            items: [{ id: 'NT123', attributes: { 'text' => 'Extension note' } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:post, 'https://reactor.adobe.io/extensions/EX123/notes')
+        .to_return(
+          status: 201,
+          body: jsonapi_response(type: 'notes', id: 'NT123', attributes: { 'text' => 'Extension note' }).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      expect(client.extensions.extension_package('EX123')).to be_a(ReactorSDK::Resources::ExtensionPackage)
+      expect(client.extensions.libraries('EX123')).to all(be_a(ReactorSDK::Resources::Library))
+      expect(client.extensions.property('EX123')).to be_a(ReactorSDK::Resources::Property)
+      expect(client.extensions.origin('EX123')).to be_a(ReactorSDK::Resources::Extension)
+      expect(client.extensions.list_notes('EX123').first).to be_a(ReactorSDK::Resources::Note)
+      expect(client.extensions.create_note('EX123', 'Extension note')).to be_a(ReactorSDK::Resources::Note)
     end
   end
 end

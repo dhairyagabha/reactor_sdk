@@ -108,6 +108,16 @@ module ReactorSDK
       def create_note(property_id, text)
         create_note_for_path("/properties/#{property_id}/notes", text)
       end
+
+      ##
+      # Lists notes attached to a property.
+      #
+      # @param property_id [String]
+      # @return [Array<ReactorSDK::Resources::Note>]
+      #
+      def list_notes(property_id)
+        list_notes_for_path("/properties/#{property_id}/notes")
+      end
     end
   end
 end

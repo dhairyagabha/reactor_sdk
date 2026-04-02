@@ -1,23 +1,28 @@
-name: Ruby
+name: CI
+
+permissions:
+  contents: read
 
 on:
   push:
-    branches:
-      - main
-
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
-    name: Ruby ${{ matrix.ruby }}
+    name: Test (Ruby ${{ matrix.ruby }})
     strategy:
+      fail-fast: false
       matrix:
         ruby:
-          - '3.4.8'
+          - '3.2'
+          - '3.3'
+          - '3.4'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Set up Ruby
@@ -25,5 +30,37 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - name: Run the default task
-        run: bundle exec rake
+      - name: Run specs
+        run: bundle exec rspec
+
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint (Ruby 3.4)
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Run RuboCop
+        run: bundle exec rubocop
+
+  package:
+    runs-on: ubuntu-latest
+    name: Build Gem
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Build gem
+        run: gem build reactor_sdk.gemspec

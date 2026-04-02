@@ -160,4 +160,25 @@ RSpec.describe ReactorSDK::Endpoints::Properties do
       expect(result).to be_nil
     end
   end
+
+  describe '#list_notes' do
+    before do
+      stub_request(:get, 'https://reactor.adobe.io/properties/PR123/notes?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'notes',
+            items: [{ id: 'NT123', attributes: { 'text' => 'Property note' } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    it 'returns notes for a property' do
+      result = client.properties.list_notes('PR123')
+
+      expect(result).to all(be_a(ReactorSDK::Resources::Note))
+      expect(result.first.text).to eq('Property note')
+    end
+  end
 end

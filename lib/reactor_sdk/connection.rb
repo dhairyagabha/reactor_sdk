@@ -64,6 +64,26 @@ module ReactorSDK
     end
 
     ##
+    # Executes an authenticated multipart POST request.
+    #
+    # @param path       [String] Relative API path
+    # @param file_path  [String] Path to the file to upload
+    # @param field_name [String] Multipart field name
+    # @param mime_type  [String] MIME type for the uploaded file
+    # @return [Hash, nil] Parsed JSON response body
+    #
+    def post_multipart(path, file_path:, field_name: 'package', mime_type: 'application/octet-stream')
+      @rate_limiter.acquire
+      response = @http.post(path) do |req|
+        inject_headers(req, content_type: nil)
+        req.body = {
+          field_name => Faraday::Multipart::FilePart.new(file_path, mime_type)
+        }
+      end
+      handle_response(response)
+    end
+
+    ##
     # Executes an authenticated PATCH request.
     #
     # @param path [String] Relative API path
@@ -116,6 +136,7 @@ module ReactorSDK
     #
     def build_faraday_connection
       Faraday.new(url: @config.base_url) do |f|
+        f.request :multipart
         f.request :retry, retry_options
         f.response :logger, @config.logger if @config.logger
         f.adapter  :net_http
@@ -145,12 +166,12 @@ module ReactorSDK
     # @param req [Faraday::Request] Outgoing request
     # @sideeffect Modifies req.headers
     #
-    def inject_headers(req)
+    def inject_headers(req, content_type: CONTENT_TYPE)
       req.headers['Authorization']   = "Bearer #{@auth.access_token}"
       req.headers['x-api-key']       = @config.client_id
       req.headers['x-gw-ims-org-id'] = @config.org_id
       req.headers['Accept']          = ACCEPT_HEADER
-      req.headers['Content-Type']    = CONTENT_TYPE
+      req.headers['Content-Type']    = content_type if content_type
     end
 
     ##

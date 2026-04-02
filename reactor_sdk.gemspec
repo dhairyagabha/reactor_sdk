@@ -15,13 +15,14 @@ Gem::Specification.new do |spec|
     JSON:API response parsing, cursor-based pagination, per-org rate
     limiting, retry logic, and a typed error hierarchy.
   DESC
-  spec.homepage = 'https://github.com/dhairyagabha/reactor-sdk'
+  spec.homepage = 'https://github.com/dhairyagabha/reactor_sdk'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.2.0'
 
   spec.metadata = {
-    'homepage_uri' => spec.homepage,
     'source_code_uri' => spec.homepage,
+    'documentation_uri' => "#{spec.homepage}/blob/main/README.md",
+    'bug_tracker_uri' => "#{spec.homepage}/issues",
     'changelog_uri' => "#{spec.homepage}/blob/main/CHANGELOG.md",
     'rubygems_mfa_required' => 'true'
   }
@@ -45,8 +46,12 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'faraday-retry',    '~> 2.2'
   # Net::HTTP adapter for Faraday
   spec.add_dependency 'faraday-net_http', '~> 3.3'
+  # Multipart upload support for extension package archive endpoints
+  spec.add_dependency 'faraday-multipart', '~> 1.1'
 
   # ── Development dependencies ─────────────────────────────────────
+  # Interactive console for local development
+  spec.add_development_dependency 'irb',           '~> 1.17'
   # Test framework
   spec.add_development_dependency 'rspec',         '~> 3.13'
   # Record and replay real HTTP interactions in tests

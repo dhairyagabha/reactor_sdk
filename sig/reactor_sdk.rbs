@@ -1,4 +1,137 @@
 module ReactorSDK
   VERSION: String
-  # See the writing guide of rbs: https://github.com/ruby/rbs#guides
+
+  class Configuration
+  end
+
+  class Client
+    attr_reader companies: Endpoints::Companies
+    attr_reader properties: Endpoints::Properties
+    attr_reader app_configurations: Endpoints::AppConfigurations
+    attr_reader callbacks: Endpoints::Callbacks
+    attr_reader secrets: Endpoints::Secrets
+    attr_reader environments: Endpoints::Environments
+    attr_reader hosts: Endpoints::Hosts
+    attr_reader rules: Endpoints::Rules
+    attr_reader rule_components: Endpoints::RuleComponents
+    attr_reader data_elements: Endpoints::DataElements
+    attr_reader extensions: Endpoints::Extensions
+    attr_reader extension_packages: Endpoints::ExtensionPackages
+    attr_reader extension_package_usage_authorizations: Endpoints::ExtensionPackageUsageAuthorizations
+    attr_reader libraries: Endpoints::Libraries
+    attr_reader builds: Endpoints::Builds
+    attr_reader audit_events: Endpoints::AuditEvents
+    attr_reader revisions: Endpoints::Revisions
+    attr_reader profiles: Endpoints::Profiles
+    attr_reader search: Endpoints::Search
+    attr_reader notes: Endpoints::Notes
+    attr_reader config: Configuration
+
+    def initialize: (
+      client_id: String,
+      client_secret: String,
+      org_id: String,
+      ?base_url: String,
+      ?ims_token_url: String,
+      ?timeout: Integer,
+      ?logger: untyped,
+      ?auto_refresh_token: bool
+    ) -> void
+  end
+
+  module Endpoints
+    class BaseEndpoint
+    end
+
+    class Companies < BaseEndpoint
+    end
+
+    class Properties < BaseEndpoint
+    end
+
+    class AppConfigurations < BaseEndpoint
+    end
+
+    class Callbacks < BaseEndpoint
+    end
+
+    class Secrets < BaseEndpoint
+    end
+
+    class Environments < BaseEndpoint
+    end
+
+    class Hosts < BaseEndpoint
+    end
+
+    class Rules < BaseEndpoint
+    end
+
+    class RuleComponents < BaseEndpoint
+    end
+
+    class DataElements < BaseEndpoint
+    end
+
+    class Extensions < BaseEndpoint
+    end
+
+    class ExtensionPackages < BaseEndpoint
+    end
+
+    class ExtensionPackageUsageAuthorizations < BaseEndpoint
+    end
+
+    class Libraries < BaseEndpoint
+    end
+
+    class Builds < BaseEndpoint
+    end
+
+    class AuditEvents < BaseEndpoint
+    end
+
+    class Revisions < BaseEndpoint
+    end
+
+    class Profiles < BaseEndpoint
+    end
+
+    class Search < BaseEndpoint
+    end
+
+    class Notes < BaseEndpoint
+    end
+  end
+
+  module Resources
+    class BaseResource
+      attr_reader id: String
+      attr_reader type: String
+      attr_reader attributes: Hash[untyped, untyped]
+      attr_reader meta: Hash[untyped, untyped]
+
+      def initialize: (
+        id: String,
+        type: String,
+        ?attributes: Hash[untyped, untyped],
+        ?meta: Hash[untyped, untyped]
+      ) -> void
+      def []: (String | Symbol key) -> untyped
+      def ==: (untyped other) -> bool
+      def to_h: -> Hash[Symbol, untyped]
+    end
+
+    class SearchResults
+      attr_reader results: Array[BaseResource]
+      attr_reader meta: Hash[untyped, untyped]
+
+      def initialize: (
+        results: Array[BaseResource],
+        ?meta: Hash[untyped, untyped]
+      ) -> void
+      def each: { (BaseResource) -> untyped } -> Array[BaseResource]
+      def total_hits: -> Integer
+    end
+  end
 end

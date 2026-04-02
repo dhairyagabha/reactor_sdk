@@ -116,6 +116,43 @@ module ReactorSDK
         @parser.parse(response['data'], Resources::Library)
       end
 
+      ##
+      # Updates a library's attributes.
+      #
+      # @param library_id [String]
+      # @param attributes [Hash]
+      # @return [ReactorSDK::Resources::Library]
+      #
+      def update(library_id, attributes)
+        update_resource(
+          "/libraries/#{library_id}",
+          library_id,
+          'libraries',
+          Resources::Library,
+          attributes: attributes
+        )
+      end
+
+      ##
+      # Deletes a library.
+      #
+      # @param library_id [String]
+      # @return [nil]
+      #
+      def delete(library_id)
+        delete_resource("/libraries/#{library_id}")
+      end
+
+      ##
+      # Retrieves the property that owns a library.
+      #
+      # @param library_id [String]
+      # @return [ReactorSDK::Resources::Property]
+      #
+      def property(library_id)
+        fetch_resource("/libraries/#{library_id}/property", Resources::Property)
+      end
+
       # ── Rules relationship management ───────────────────────────
 
       ##
@@ -166,6 +203,26 @@ module ReactorSDK
         payload = build_relationship_payload('rules', rule_ids)
         @connection.patch("/libraries/#{library_id}/relationships/rules", payload)
         nil
+      end
+
+      ##
+      # Lists the rules currently assigned to a library.
+      #
+      # @param library_id [String]
+      # @return [Array<ReactorSDK::Resources::Rule>]
+      #
+      def rules(library_id)
+        list_resources("/libraries/#{library_id}/rules", Resources::Rule)
+      end
+
+      ##
+      # Retrieves raw rule relationship linkage for a library.
+      #
+      # @param library_id [String]
+      # @return [Hash, Array<Hash>, nil]
+      #
+      def rule_relationships(library_id)
+        fetch_relationship("/libraries/#{library_id}/relationships/rules")
       end
 
       # ── Data elements relationship management ───────────────────
@@ -219,6 +276,26 @@ module ReactorSDK
         nil
       end
 
+      ##
+      # Lists the data elements currently assigned to a library.
+      #
+      # @param library_id [String]
+      # @return [Array<ReactorSDK::Resources::DataElement>]
+      #
+      def data_elements(library_id)
+        list_resources("/libraries/#{library_id}/data_elements", Resources::DataElement)
+      end
+
+      ##
+      # Retrieves raw data element relationship linkage for a library.
+      #
+      # @param library_id [String]
+      # @return [Hash, Array<Hash>, nil]
+      #
+      def data_element_relationships(library_id)
+        fetch_relationship("/libraries/#{library_id}/relationships/data_elements")
+      end
+
       # ── Extensions relationship management ──────────────────────
 
       ##
@@ -269,6 +346,26 @@ module ReactorSDK
         nil
       end
 
+      ##
+      # Lists the extensions currently assigned to a library.
+      #
+      # @param library_id [String]
+      # @return [Array<ReactorSDK::Resources::Extension>]
+      #
+      def extensions(library_id)
+        list_resources("/libraries/#{library_id}/extensions", Resources::Extension)
+      end
+
+      ##
+      # Retrieves raw extension relationship linkage for a library.
+      #
+      # @param library_id [String]
+      # @return [Hash, Array<Hash>, nil]
+      #
+      def extension_relationships(library_id)
+        fetch_relationship("/libraries/#{library_id}/relationships/extensions")
+      end
+
       # ── Environment assignment ──────────────────────────────────
 
       ##
@@ -284,6 +381,36 @@ module ReactorSDK
         payload = { data: { id: environment_id, type: 'environments' } }
         @connection.patch("/libraries/#{library_id}/relationships/environment", payload)
         nil
+      end
+
+      ##
+      # Retrieves the environment currently assigned to a library.
+      #
+      # @param library_id [String]
+      # @return [ReactorSDK::Resources::Environment]
+      #
+      def environment(library_id)
+        fetch_resource("/libraries/#{library_id}/environment", Resources::Environment)
+      end
+
+      ##
+      # Retrieves the raw environment relationship for a library.
+      #
+      # @param library_id [String]
+      # @return [Hash, Array<Hash>, nil]
+      #
+      def environment_relationship(library_id)
+        fetch_relationship("/libraries/#{library_id}/relationships/environment")
+      end
+
+      ##
+      # Removes any assigned environment from a library.
+      #
+      # @param library_id [String]
+      # @return [nil]
+      #
+      def remove_environment(library_id)
+        delete_resource("/libraries/#{library_id}/relationships/environment")
       end
 
       # ── State machine ───────────────────────────────────────────
@@ -325,6 +452,37 @@ module ReactorSDK
       def build(library_id)
         response = @connection.post("/libraries/#{library_id}/builds", {})
         @parser.parse(response['data'], Resources::Build)
+      end
+
+      ##
+      # Retrieves the immediate upstream library configured for a library.
+      #
+      # @param library_id [String]
+      # @return [ReactorSDK::Resources::Library]
+      #
+      def upstream_library(library_id)
+        fetch_resource("/libraries/#{library_id}/upstream_library", Resources::Library)
+      end
+
+      ##
+      # Lists notes attached to a library.
+      #
+      # @param library_id [String]
+      # @return [Array<ReactorSDK::Resources::Note>]
+      #
+      def list_notes(library_id)
+        list_notes_for_path("/libraries/#{library_id}/notes")
+      end
+
+      ##
+      # Creates a note on a library.
+      #
+      # @param library_id [String]
+      # @param text [String]
+      # @return [ReactorSDK::Resources::Note]
+      #
+      def create_note(library_id, text)
+        create_note_for_path("/libraries/#{library_id}/notes", text)
       end
 
       # ── Upstream resolution ─────────────────────────────────────

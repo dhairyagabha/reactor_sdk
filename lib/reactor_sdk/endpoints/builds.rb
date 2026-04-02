@@ -40,6 +40,23 @@ module ReactorSDK
         records = @paginator.all("/libraries/#{library_id}/builds")
         records.map { |r| @parser.parse(r, Resources::Build) }
       end
+
+      ##
+      # Republishes an existing build.
+      #
+      # @param build_id [String]
+      # @return [ReactorSDK::Resources::Build]
+      #
+      def republish(build_id)
+        update_resource(
+          "/builds/#{build_id}",
+          build_id,
+          'builds',
+          Resources::Build,
+          attributes: {},
+          meta: { action: 'republish' }
+        )
+      end
     end
   end
 end

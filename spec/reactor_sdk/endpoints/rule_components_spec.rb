@@ -181,4 +181,53 @@ RSpec.describe ReactorSDK::Endpoints::RuleComponents do
       expect(result).to be_nil
     end
   end
+
+  describe 'related resources and notes' do
+    before do
+      stub_request(:get, 'https://reactor.adobe.io/rule_components/RC123/extension')
+        .to_return(
+          status: 200,
+          body: jsonapi_response(
+            type: 'extensions',
+            id: 'EX123',
+            attributes: { 'name' => 'Core', 'delegate_descriptor_id' => 'core::config' }
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/rule_components/RC123/origin')
+        .to_return(status: 200, body: single_response, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, 'https://reactor.adobe.io/rule_components/RC123/rules?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'rules',
+            items: [{ id: 'RL123', attributes: { 'name' => 'Order Confirmation', 'enabled' => true } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/rule_components/RC123/notes?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'notes',
+            items: [{ id: 'NT123', attributes: { 'text' => 'RC note' } }]
+          ).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:post, 'https://reactor.adobe.io/rule_components/RC123/notes')
+        .to_return(
+          status: 201,
+          body: jsonapi_response(type: 'notes', id: 'NT123', attributes: { 'text' => 'RC note' }).to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    it 'fetches related resources and notes' do
+      expect(client.rule_components.extension('RC123')).to be_a(ReactorSDK::Resources::Extension)
+      expect(client.rule_components.origin('RC123')).to be_a(ReactorSDK::Resources::RuleComponent)
+      expect(client.rule_components.rules('RC123')).to all(be_a(ReactorSDK::Resources::Rule))
+      expect(client.rule_components.list_notes('RC123').first).to be_a(ReactorSDK::Resources::Note)
+      expect(client.rule_components.create_note('RC123', 'RC note')).to be_a(ReactorSDK::Resources::Note)
+    end
+  end
 end
