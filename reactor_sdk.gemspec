@@ -30,13 +30,13 @@ Gem::Specification.new do |spec|
   # Only include what belongs in the published gem
   spec.files = Dir.chdir(__dir__) do
     Dir.glob(%w[
-      lib/**/*.rb
-      sig/**/*.rbs
-      LICENSE.txt
-      README.md
-      CHANGELOG.md
-      reactor_sdk.gemspec
-    ])
+               lib/**/*.rb
+               sig/**/*.rbs
+               LICENSE.txt
+               README.md
+               CHANGELOG.md
+               reactor_sdk.gemspec
+             ])
   end
 
   spec.require_paths = ['lib']
