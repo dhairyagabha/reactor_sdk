@@ -31,6 +31,7 @@ RSpec.describe ReactorSDK::Resources::RuleComponent do
         'delegate_descriptor_id' => 'adobe-analytics::actions::set-variables',
         'settings' => '{}',
         'order' => 1,
+        'rule_order' => 50.0,
         'created_at' => '2024-01-01T00:00:00.000Z',
         'updated_at' => '2024-01-02T00:00:00.000Z'
       )
@@ -39,6 +40,7 @@ RSpec.describe ReactorSDK::Resources::RuleComponent do
     it { expect(component.name).to eq('Send Beacon') }
     it { expect(component.delegate_descriptor_id).to eq('adobe-analytics::actions::set-variables') }
     it { expect(component.order).to eq(1) }
+    it { expect(component.rule_order).to eq(50.0) }
     it { expect(component.created_at).to eq('2024-01-01T00:00:00.000Z') }
     it { expect(component.updated_at).to eq('2024-01-02T00:00:00.000Z') }
   end

@@ -44,6 +44,9 @@ module ReactorSDK
       # @return [Integer, nil] Execution order of this component within the rule
       attribute :order
 
+      # @return [Float, Integer, nil] Execution order of this component within the rule graph
+      attribute :rule_order
+
       # @return [String] ISO8601 timestamp when the component was created
       attribute :created_at
 

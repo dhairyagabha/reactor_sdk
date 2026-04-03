@@ -217,6 +217,29 @@ RSpec.describe ReactorSDK::Resources::Revision do
     end
   end
 
+  describe '#entity_relationships' do
+    it 'returns the included entity relationships when present' do
+      response = revision_response(
+        entity_id: 'RL123',
+        entity_type: 'rules',
+        entity_attributes: { 'name' => 'Order Confirmation' }
+      )
+      response['included'].first['relationships'] = {
+        'rule_components' => {
+          'data' => [{ 'id' => 'RC123', 'type' => 'rule_components' }]
+        }
+      }
+
+      revision = parse_revision(response)
+
+      expect(revision.entity_relationships).to eq(
+        'rule_components' => {
+          'data' => [{ 'id' => 'RC123', 'type' => 'rule_components' }]
+        }
+      )
+    end
+  end
+
   # ── inspect ──────────────────────────────────────────────────
 
   describe '#inspect' do

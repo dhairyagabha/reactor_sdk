@@ -132,6 +132,61 @@ module ReactorSDK
       end
 
       ##
+      # Resolves the data element across the ordered upstream library chain.
+      #
+      # @param data_element_or_id [String, ReactorSDK::Resources::DataElement]
+      # @param library_id [String] Adobe library ID used as the comparison root
+      # @param property_id [String] Adobe property ID containing the library chain
+      # @return [ReactorSDK::Resources::UpstreamChain]
+      #
+      def upstream_chain(data_element_or_id, library_id:, property_id:)
+        libraries_endpoint.upstream_chain_for_resource(
+          data_element_or_id,
+          library_id: library_id,
+          property_id: property_id,
+          resource_type: 'data_elements'
+        )
+      end
+
+      ##
+      # Fetches the data element from a library-context review snapshot
+      # together with impact analysis and normalized review payload.
+      #
+      # @param data_element_id [String]
+      # @param library_id [String]
+      # @param property_id [String]
+      # @return [ReactorSDK::Resources::ComprehensiveDataElement]
+      #
+      def find_comprehensive(data_element_id, library_id:, property_id:)
+        snapshot = libraries_endpoint.find_snapshot(library_id, property_id: property_id)
+        comprehensive = snapshot.comprehensive_resource(data_element_id, resource_type: 'data_elements')
+        unless comprehensive
+          raise ReactorSDK::ResourceNotFoundError,
+                "Data element #{data_element_id} was not found in library #{library_id}"
+        end
+
+        comprehensive
+      end
+
+      ##
+      # Resolves the data element across the ordered upstream chain using
+      # snapshot-aware comprehensive review objects.
+      #
+      # @param data_element_or_id [String, ReactorSDK::Resources::DataElement]
+      # @param library_id [String]
+      # @param property_id [String]
+      # @return [ReactorSDK::Resources::ComprehensiveUpstreamChain]
+      #
+      def comprehensive_upstream_chain(data_element_or_id, library_id:, property_id:)
+        libraries_endpoint.comprehensive_upstream_chain_for_resource(
+          data_element_or_id,
+          library_id: library_id,
+          property_id: property_id,
+          resource_type: 'data_elements'
+        )
+      end
+
+      ##
       # Lists notes attached to a data element.
       #
       # @param data_element_id [String]
@@ -182,6 +237,14 @@ module ReactorSDK
             }
           }
         }
+      end
+
+      def libraries_endpoint
+        @libraries_endpoint ||= Endpoints::Libraries.new(
+          connection: @connection,
+          paginator: @paginator,
+          parser: @parser
+        )
       end
     end
   end

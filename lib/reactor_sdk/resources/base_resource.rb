@@ -44,6 +44,9 @@ module ReactorSDK
       # @return [Hash] Meta hash from the JSON:API response
       attr_reader :meta
 
+      # @return [Hash] Relationships hash from the JSON:API response
+      attr_reader :relationships
+
       ##
       # Class-level macro for declaring typed attribute readers.
       # Called in subclass bodies to define which JSON:API attributes
@@ -80,12 +83,14 @@ module ReactorSDK
       # @param type       [String] JSON:API resource type
       # @param attributes [Hash]   Resource attribute values from the API response
       # @param meta       [Hash]   Optional metadata from the API response
+      # @param relationships [Hash] Optional relationships from the API response
       #
-      def initialize(id:, type:, attributes: {}, meta: {})
+      def initialize(id:, type:, attributes: {}, meta: {}, relationships: {})
         @id         = id
         @type       = type
         @attributes = attributes
         @meta       = meta
+        @relationships = relationships
       end
 
       ##
@@ -98,6 +103,39 @@ module ReactorSDK
       #
       def [](key)
         @attributes[key.to_s]
+      end
+
+      ##
+      # Returns the raw relationship object for a given relationship name.
+      #
+      # @param name [String, Symbol]
+      # @return [Hash, nil]
+      #
+      def relationship_data(name)
+        @relationships[name.to_s]
+      end
+
+      ##
+      # Returns the related resource ID when the relationship contains a single linkage.
+      #
+      # @param name [String, Symbol]
+      # @return [String, nil]
+      #
+      def relationship_id(name)
+        relationship_data(name)&.dig('data', 'id')
+      end
+
+      ##
+      # Returns related resource IDs when the relationship contains collection linkage.
+      #
+      # @param name [String, Symbol]
+      # @return [Array<String>]
+      #
+      def relationship_ids(name)
+        data = relationship_data(name)&.fetch('data', nil)
+        return [] unless data.is_a?(Array)
+
+        data.filter_map { |item| item['id'] }
       end
 
       ##
@@ -134,7 +172,8 @@ module ReactorSDK
           id: @id,
           type: @type,
           attributes: @attributes,
-          meta: @meta
+          meta: @meta,
+          relationships: @relationships
         }
       end
     end

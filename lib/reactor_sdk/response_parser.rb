@@ -65,7 +65,8 @@ module ReactorSDK
         id: data.fetch('id'),
         type: data.fetch('type'),
         attributes: data.fetch('attributes', {}),
-        meta: data.fetch('meta', {})
+        meta: data.fetch('meta', {}),
+        relationships: data.fetch('relationships', {})
       }
 
       base_args.merge!(extract_revision_extras(data, response)) if resource_class == Resources::Revision
@@ -128,7 +129,7 @@ module ReactorSDK
       included_entity = find_included_entity(data, response)
 
       {
-        relationships: relationships,
+        revision_relationships: relationships,
         included_entity: included_entity
       }
     end

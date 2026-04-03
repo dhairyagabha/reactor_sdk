@@ -21,21 +21,23 @@ Gem::Specification.new do |spec|
 
   spec.metadata = {
     'source_code_uri' => spec.homepage,
-    'documentation_uri' => "#{spec.homepage}/blob/main/README.md",
+    'documentation_uri' => 'https://reactor-sdk.dhairyagabhawala.com',
     'bug_tracker_uri' => "#{spec.homepage}/issues",
     'changelog_uri' => "#{spec.homepage}/blob/main/CHANGELOG.md",
     'rubygems_mfa_required' => 'true'
   }
 
   # Only include what belongs in the published gem
-  spec.files = Dir.glob(%w[
-                          lib/**/*.rb
-                          sig/**/*.rbs
-                          LICENSE.txt
-                          README.md
-                          CHANGELOG.md
-                          reactor_sdk.gemspec
-                        ])
+  spec.files = Dir.chdir(__dir__) do
+    Dir.glob(%w[
+      lib/**/*.rb
+      sig/**/*.rbs
+      LICENSE.txt
+      README.md
+      CHANGELOG.md
+      reactor_sdk.gemspec
+    ])
+  end
 
   spec.require_paths = ['lib']
 

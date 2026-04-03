@@ -18,7 +18,10 @@ RSpec.describe ReactorSDK::ResponseParser do
           'id' => 'PR123',
           'type' => 'properties',
           'attributes' => { 'name' => 'Marketing Site' },
-          'meta' => { 'page' => 1 }
+          'meta' => { 'page' => 1 },
+          'relationships' => {
+            'company' => { 'data' => { 'id' => 'CO123', 'type' => 'companies' } }
+          }
         },
         ReactorSDK::Resources::Property
       )
@@ -27,6 +30,7 @@ RSpec.describe ReactorSDK::ResponseParser do
       expect(resource.id).to eq('PR123')
       expect(resource.name).to eq('Marketing Site')
       expect(resource.meta).to eq('page' => 1)
+      expect(resource.relationship_id('company')).to eq('CO123')
     end
 
     it 'raises ArgumentError when data is nil' do
@@ -64,6 +68,42 @@ RSpec.describe ReactorSDK::ResponseParser do
       expect(revision.entity_snapshot).to eq(
         'name' => 'Order Confirmation',
         'enabled' => true
+      )
+    end
+
+    it 'retains included entity relationships on the revision' do
+      revision = parser.parse(
+        {
+          'id' => 'RE123',
+          'type' => 'revisions',
+          'attributes' => { 'activity_type' => 'updated' },
+          'relationships' => {
+            'entity' => {
+              'data' => { 'id' => 'RL123', 'type' => 'rules' }
+            }
+          }
+        },
+        ReactorSDK::Resources::Revision,
+        response: {
+          'included' => [
+            {
+              'id' => 'RL123',
+              'type' => 'rules',
+              'attributes' => { 'name' => 'Order Confirmation' },
+              'relationships' => {
+                'rule_components' => {
+                  'data' => [{ 'id' => 'RC123', 'type' => 'rule_components' }]
+                }
+              }
+            }
+          ]
+        }
+      )
+
+      expect(revision.entity_relationships).to eq(
+        'rule_components' => {
+          'data' => [{ 'id' => 'RC123', 'type' => 'rule_components' }]
+        }
       )
     end
   end

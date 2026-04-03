@@ -57,6 +57,17 @@ module ReactorSDK
       end
 
       ##
+      # Returns the full relationships snapshot of the resource at this revision.
+      #
+      # @return [Hash]
+      #
+      def entity_relationships
+        return {} if @included_entity.nil?
+
+        @included_entity.fetch('relationships', {})
+      end
+
+      ##
       # Returns the Adobe ID of the resource this revision belongs to.
       # Extracted from the JSON:API relationships on the revision.
       #
@@ -96,12 +107,19 @@ module ReactorSDK
         type:,
         attributes:      {},
         meta:            {},
+        relationships:   {},
         included_entity: nil,
-        relationships:   nil
+        revision_relationships: nil
       )
-        super(id: id, type: type, attributes: attributes, meta: meta)
+        super(
+          id: id,
+          type: type,
+          attributes: attributes,
+          meta: meta,
+          relationships: relationships
+        )
         @included_entity = included_entity
-        extract_entity_identity(relationships)
+        extract_entity_identity(revision_relationships || relationships)
       end
 
       ##

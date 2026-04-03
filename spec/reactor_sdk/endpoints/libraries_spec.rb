@@ -732,4 +732,618 @@ RSpec.describe ReactorSDK::Endpoints::Libraries do
       end
     end
   end
+
+  # ── upstream_chain_for_resource ──────────────────────────────
+
+  describe '#upstream_chain_for_resource' do
+    def library_payload(library_id, name)
+      {
+        'id' => library_id,
+        'type' => 'libraries',
+        'attributes' => library_attributes.merge('name' => name)
+      }
+    end
+
+    def target_with_resources
+      {
+        'data' => library_payload('LB_DEV', 'Dev Library'),
+        'included' => [
+          {
+            'id' => 'RL123',
+            'type' => 'rules',
+            'attributes' => { 'name' => 'Order Confirmation', 'enabled' => true },
+            'relationships' => { 'latest_revision' => { 'data' => { 'id' => 'RE_DEV', 'type' => 'revisions' } } }
+          }
+        ]
+      }.to_json
+    end
+
+    def staging_with_resources
+      {
+        'data' => library_payload('LB_STG', 'Staging Library'),
+        'included' => [
+          {
+            'id' => 'RL123',
+            'type' => 'rules',
+            'attributes' => { 'name' => 'Order Confirmation', 'enabled' => true },
+            'relationships' => { 'latest_revision' => { 'data' => { 'id' => 'RE_STG', 'type' => 'revisions' } } }
+          }
+        ]
+      }.to_json
+    end
+
+    def production_with_resources
+      {
+        'data' => library_payload('LB_PRD', 'Production Library'),
+        'included' => []
+      }.to_json
+    end
+
+    def stub_library_find(library_id, attrs)
+      stub_request(:get, "https://reactor.adobe.io/libraries/#{library_id}")
+        .to_return(
+          status: 200,
+          body: { 'data' => { 'id' => library_id, 'type' => 'libraries', 'attributes' => attrs } }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    def stub_library_env(library_id, env_id)
+      stub_request(:get, "https://reactor.adobe.io/libraries/#{library_id}/relationships/environment")
+        .to_return(
+          status: 200,
+          body: { 'data' => { 'id' => env_id, 'type' => 'environments' } }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    def stub_env_stage(env_id, stage)
+      stub_request(:get, "https://reactor.adobe.io/environments/#{env_id}")
+        .to_return(
+          status: 200,
+          body: { 'data' => { 'id' => env_id, 'type' => 'environments',
+                              'attributes' => { 'stage' => stage } } }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    before do
+      stub_library_find('LB_DEV', library_attributes.merge('name' => 'Dev Library'))
+      stub_library_find('LB_STG', library_attributes.merge('name' => 'Staging Library'))
+      stub_library_find('LB_PRD', library_attributes.merge('name' => 'Production Library'))
+
+      stub_request(:get, 'https://reactor.adobe.io/properties/PR123/libraries?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: {
+            'data' => [
+              library_payload('LB_DEV', 'Dev Library'),
+              library_payload('LB_STG', 'Staging Library'),
+              library_payload('LB_PRD', 'Production Library')
+            ],
+            'links' => { 'next' => nil }
+          }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      stub_library_env('LB_DEV', 'EN_DEV')
+      stub_library_env('LB_STG', 'EN_STG')
+      stub_library_env('LB_PRD', 'EN_PRD')
+      stub_env_stage('EN_DEV',  'development')
+      stub_env_stage('EN_STG',  'staging')
+      stub_env_stage('EN_PRD', 'production')
+
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_DEV?include=rules%2Cdata_elements%2Cextensions')
+        .to_return(status: 200, body: target_with_resources, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_STG?include=rules%2Cdata_elements%2Cextensions')
+        .to_return(status: 200, body: staging_with_resources, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_PRD?include=rules%2Cdata_elements%2Cextensions')
+        .to_return(status: 200, body: production_with_resources, headers: { 'Content-Type' => 'application/json' })
+
+      stub_request(:get, 'https://reactor.adobe.io/revisions/RE_STG')
+        .to_return(
+          status: 200,
+          body: {
+            'data' => {
+              'id' => 'RE_STG',
+              'type' => 'revisions',
+              'attributes' => { 'activity_type' => 'updated' },
+              'relationships' => { 'entity' => { 'data' => { 'id' => 'RL123', 'type' => 'rules' } } }
+            },
+            'included' => [
+              {
+                'id' => 'RL123',
+                'type' => 'rules',
+                'attributes' => { 'name' => 'Order Confirmation', 'enabled' => true }
+              }
+            ]
+          }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    it 'returns an UpstreamChain wrapper' do
+      expect(
+        client.libraries.upstream_chain_for_resource('RL123', library_id: 'LB_DEV', property_id: 'PR123')
+      ).to be_a(ReactorSDK::Resources::UpstreamChain)
+    end
+
+    it 'captures the target resource and target revision id' do
+      result = client.libraries.upstream_chain_for_resource('RL123', library_id: 'LB_DEV', property_id: 'PR123')
+
+      expect(result.target_resource).to be_a(ReactorSDK::Resources::Rule)
+      expect(result.target_revision_id).to eq('RE_DEV')
+    end
+
+    it 'returns one entry per upstream library in order' do
+      result = client.libraries.upstream_chain_for_resource('RL123', library_id: 'LB_DEV', property_id: 'PR123')
+
+      expect(result.entries.map { |entry| [entry.library.id, entry.stage] }).to eq(
+        [%w[LB_STG staging], %w[LB_PRD production]]
+      )
+    end
+
+    it 'marks present and missing upstream matches correctly' do
+      result = client.libraries.upstream_chain_for_resource('RL123', library_id: 'LB_DEV', property_id: 'PR123')
+
+      expect(result.entries.first.present?).to be(true)
+      expect(result.entries.first.revision_id).to eq('RE_STG')
+      expect(result.entries.last.present?).to be(false)
+      expect(result.entries.last.revision_id).to be_nil
+    end
+
+    it 'returns the nearest upstream match' do
+      result = client.libraries.upstream_chain_for_resource('RL123', library_id: 'LB_DEV', property_id: 'PR123')
+
+      expect(result.nearest_match.library.id).to eq('LB_STG')
+      expect(result.nearest_match.entity_snapshot).to eq('name' => 'Order Confirmation', 'enabled' => true)
+    end
+
+    it 'accepts a typed resource object as the lookup input' do
+      rule = ReactorSDK::Resources::Rule.new(
+        id: 'RL123',
+        type: 'rules',
+        attributes: { 'name' => 'Order Confirmation', 'enabled' => true }
+      )
+
+      result = client.libraries.upstream_chain_for_resource(rule, library_id: 'LB_DEV', property_id: 'PR123')
+      expect(result.resource_type).to eq('rules')
+      expect(result.resource_id).to eq('RL123')
+    end
+  end
+
+  describe '#find_snapshot' do
+    let(:snapshot_response) do
+      {
+        'data' => {
+          'id' => 'LB123',
+          'type' => 'libraries',
+          'attributes' => library_attributes
+        },
+        'included' => [
+          {
+            'id' => 'RL123',
+            'type' => 'rules',
+            'attributes' => { 'name' => 'Order Confirmation', 'enabled' => true },
+            'relationships' => { 'latest_revision' => { 'data' => { 'id' => 'RE001', 'type' => 'revisions' } } }
+          },
+          {
+            'id' => 'DE123',
+            'type' => 'data_elements',
+            'attributes' => {
+              'name' => 'Page Name',
+              'delegate_descriptor_id' => 'core::dataElements::custom-code',
+              'settings' => '{"source":"return document.title;"}'
+            },
+            'relationships' => {
+              'latest_revision' => { 'data' => { 'id' => 'RE010', 'type' => 'revisions' } },
+              'extension' => { 'data' => { 'id' => 'EX123', 'type' => 'extensions' } }
+            }
+          },
+          {
+            'id' => 'EX123',
+            'type' => 'extensions',
+            'attributes' => {
+              'name' => 'Core',
+              'delegate_descriptor_id' => 'core::extension',
+              'settings' => '{}'
+            },
+            'relationships' => { 'latest_revision' => { 'data' => { 'id' => 'RE020', 'type' => 'revisions' } } }
+          }
+        ]
+      }.to_json
+    end
+
+    let(:rule_components_response) do
+      jsonapi_list_response(
+        type: 'rule_components',
+        items: [
+          {
+            id: 'RC999',
+            attributes: {
+              'name' => 'Newer Component',
+              'delegate_descriptor_id' => 'core::actions::custom-code',
+              'settings' => '{"source":"console.log(2);","language":"javascript"}',
+              'order' => 2,
+              'rule_order' => 60.0
+            }
+          },
+          {
+            id: 'RC123',
+            attributes: {
+              'name' => 'Custom Code',
+              'delegate_descriptor_id' => 'core::actions::custom-code',
+              'settings' => '{"source":"console.log(_satellite.getVar(\'Page Name\'));","language":"javascript"}',
+              'order' => 1,
+              'rule_order' => 50.0
+            }
+          }
+        ]
+      ).tap do |payload|
+        payload['data'].each do |item|
+          item['relationships'] = {
+            'extension' => { 'data' => { 'id' => 'EX123', 'type' => 'extensions' } },
+            'latest_revision' => { 'data' => { 'id' => "RE_#{item['id']}", 'type' => 'revisions' } }
+          }
+        end
+      end.to_json
+    end
+
+    let(:rule_revision_response) do
+      {
+        'data' => {
+          'id' => 'RE001',
+          'type' => 'revisions',
+          'attributes' => { 'activity_type' => 'updated' },
+          'relationships' => { 'entity' => { 'data' => { 'id' => 'RL123', 'type' => 'rules' } } }
+        },
+        'included' => [
+          {
+            'id' => 'RL123',
+            'type' => 'rules',
+            'attributes' => { 'name' => 'Order Confirmation', 'enabled' => true },
+            'relationships' => {
+              'rule_components' => {
+                'data' => [{ 'id' => 'RC123', 'type' => 'rule_components' }]
+              }
+            }
+          }
+        ]
+      }.to_json
+    end
+
+    before do
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB123?include=rules%2Cdata_elements%2Cextensions')
+        .to_return(status: 200, body: snapshot_response, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, 'https://reactor.adobe.io/rules/RL123/rule_components?page%5Bsize%5D=100')
+        .to_return(status: 200, body: rule_components_response, headers: { 'Content-Type' => 'application/json' })
+      stub_request(:get, 'https://reactor.adobe.io/revisions/RE001')
+        .to_return(status: 200, body: rule_revision_response, headers: { 'Content-Type' => 'application/json' })
+    end
+
+    it 'returns a snapshot with associated rule components' do
+      snapshot = client.libraries.find_snapshot('LB123', property_id: 'PR123')
+
+      expect(snapshot).to be_a(ReactorSDK::Resources::LibrarySnapshot)
+      expect(snapshot.rule_components_for_rule('RL123').map(&:id)).to eq(['RC123'])
+      expect(snapshot.impacted_rules_for('DE123').map(&:id)).to eq(['RL123'])
+    end
+
+    it 'builds a fresh snapshot per call' do
+      first = client.libraries.find_snapshot('LB123', property_id: 'PR123')
+      second = client.libraries.find_snapshot('LB123', property_id: 'PR123')
+
+      expect(first.object_id).not_to eq(second.object_id)
+    end
+  end
+
+  describe '#compare' do
+    def comparison_snapshot(library_id:, name:, rules: [], data_elements: [], extensions: [])
+      library = ReactorSDK::Resources::LibraryWithResources.new(
+        id: library_id,
+        type: 'libraries',
+        attributes: library_attributes.merge('name' => name),
+        included_resources: {
+          'rules' => rules,
+          'data_elements' => data_elements,
+          'extensions' => extensions
+        }
+      )
+
+      ReactorSDK::Resources::LibrarySnapshot.new(
+        property_id: 'PR123',
+        library: library,
+        rule_components_by_rule_id: {}
+      )
+    end
+
+    def included_resource(id:, type:, name:, revision_id:)
+      {
+        'id' => id,
+        'type' => type,
+        'attributes' => {
+          'name' => name,
+          'settings' => '{}'
+        },
+        'relationships' => {
+          'latest_revision' => {
+            'data' => { 'id' => revision_id, 'type' => 'revisions' }
+          }
+        }
+      }
+    end
+
+    let(:current_snapshot) do
+      comparison_snapshot(
+        library_id: 'LB_DEV',
+        name: 'Development Library',
+        rules: [
+          included_resource(id: 'RL100', type: 'rules', name: 'Checkout Rule', revision_id: 'RE_CUR_RULE'),
+          included_resource(id: 'RL200', type: 'rules', name: 'Added Rule', revision_id: 'RE_ADDED')
+        ],
+        extensions: [
+          included_resource(id: 'EX100', type: 'extensions', name: 'Core', revision_id: 'RE_EX')
+        ]
+      )
+    end
+
+    let(:baseline_snapshot) do
+      comparison_snapshot(
+        library_id: 'LB_STG',
+        name: 'Staging Library',
+        rules: [
+          included_resource(id: 'RL100', type: 'rules', name: 'Checkout Rule', revision_id: 'RE_BASE_RULE')
+        ],
+        data_elements: [
+          included_resource(id: 'DE200', type: 'data_elements', name: 'Removed Element', revision_id: 'RE_REMOVED')
+        ],
+        extensions: [
+          included_resource(id: 'EX100', type: 'extensions', name: 'Core', revision_id: 'RE_EX')
+        ]
+      )
+    end
+
+    before do
+      allow(client.libraries).to receive(:find_snapshot)
+        .with('LB_DEV', property_id: 'PR123')
+        .and_return(current_snapshot)
+      allow(client.libraries).to receive(:find_snapshot)
+        .with('LB_STG', property_id: 'PR123')
+        .and_return(baseline_snapshot)
+    end
+
+    it 'returns a library comparison with revision-aware statuses' do
+      comparison = client.libraries.compare('LB_DEV', baseline_library_id: 'LB_STG', property_id: 'PR123')
+
+      expect(comparison).to be_a(ReactorSDK::Resources::LibraryComparison)
+      expect(comparison.entries.to_h { |entry| [entry.resource_id, entry.status] }).to eq(
+        'RL200' => 'added',
+        'RL100' => 'modified',
+        'DE200' => 'removed',
+        'EX100' => 'unchanged'
+      )
+    end
+
+    it 'builds Changeset-ready documents for changed resources' do
+      comparison = client.libraries.compare('LB_DEV', baseline_library_id: 'LB_STG', property_id: 'PR123')
+
+      expect(comparison.changeset_documents.map { |document| document[:path] }).to eq(
+        %w[
+          reactor/rules/RL200.json
+          reactor/rules/RL100.json
+          reactor/data_elements/DE200.json
+        ]
+      )
+    end
+  end
+
+  describe '#comprehensive_upstream_chain_for_resource' do
+    let(:dev_env_id)  { 'EN_DEV' }
+    let(:stg_env_id)  { 'EN_STG' }
+    let(:prod_env_id) { 'EN_PRD' }
+
+    let(:dev_library) do
+      { 'id' => 'LB_DEV', 'type' => 'libraries', 'attributes' => library_attributes.merge('name' => 'Dev Library') }
+    end
+    let(:stg_library) do
+      { 'id' => 'LB_STG', 'type' => 'libraries', 'attributes' => library_attributes.merge('name' => 'Staging Library') }
+    end
+    let(:prod_library) do
+      { 'id' => 'LB_PRD', 'type' => 'libraries', 'attributes' => library_attributes.merge('name' => 'Production Library') }
+    end
+
+    def stub_library_find(library_id, attrs)
+      stub_request(:get, "https://reactor.adobe.io/libraries/#{library_id}")
+        .to_return(
+          status: 200,
+          body: { 'data' => { 'id' => library_id, 'type' => 'libraries', 'attributes' => attrs } }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    def stub_library_env(library_id, env_id)
+      stub_request(:get, "https://reactor.adobe.io/libraries/#{library_id}/relationships/environment")
+        .to_return(
+          status: 200,
+          body: { 'data' => { 'id' => env_id, 'type' => 'environments' } }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    def stub_env_stage(env_id, stage)
+      stub_request(:get, "https://reactor.adobe.io/environments/#{env_id}")
+        .to_return(
+          status: 200,
+          body: { 'data' => { 'id' => env_id, 'type' => 'environments', 'attributes' => { 'stage' => stage } } }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    before do
+      stub_library_find('LB_DEV', library_attributes.merge('name' => 'Dev Library'))
+      stub_library_find('LB_STG', library_attributes.merge('name' => 'Staging Library'))
+      stub_library_find('LB_PRD', library_attributes.merge('name' => 'Production Library'))
+
+      stub_request(:get, 'https://reactor.adobe.io/properties/PR123/libraries?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: { 'data' => [dev_library, stg_library, prod_library], 'links' => { 'next' => nil } }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      stub_library_env('LB_DEV', dev_env_id)
+      stub_library_env('LB_STG', stg_env_id)
+      stub_library_env('LB_PRD', prod_env_id)
+      stub_env_stage(dev_env_id, 'development')
+      stub_env_stage(stg_env_id, 'staging')
+      stub_env_stage(prod_env_id, 'production')
+
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_DEV?include=rules%2Cdata_elements%2Cextensions')
+        .to_return(
+          status: 200,
+          body: {
+            'data' => dev_library,
+            'included' => [
+              {
+                'id' => 'RL123',
+                'type' => 'rules',
+                'attributes' => { 'name' => 'Order Confirmation', 'enabled' => true },
+                'relationships' => { 'latest_revision' => { 'data' => { 'id' => 'RE_DEV', 'type' => 'revisions' } } }
+              },
+              {
+                'id' => 'EX123',
+                'type' => 'extensions',
+                'attributes' => { 'name' => 'Core', 'delegate_descriptor_id' => 'core::extension', 'settings' => '{}' },
+                'relationships' => { 'latest_revision' => { 'data' => { 'id' => 'RE_EX_DEV', 'type' => 'revisions' } } }
+              }
+            ]
+          }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_STG?include=rules%2Cdata_elements%2Cextensions')
+        .to_return(
+          status: 200,
+          body: {
+            'data' => stg_library,
+            'included' => [
+              {
+                'id' => 'RL123',
+                'type' => 'rules',
+                'attributes' => { 'name' => 'Order Confirmation', 'enabled' => true },
+                'relationships' => { 'latest_revision' => { 'data' => { 'id' => 'RE_STG', 'type' => 'revisions' } } }
+              },
+              {
+                'id' => 'EX123',
+                'type' => 'extensions',
+                'attributes' => { 'name' => 'Core', 'delegate_descriptor_id' => 'core::extension', 'settings' => '{}' },
+                'relationships' => { 'latest_revision' => { 'data' => { 'id' => 'RE_EX_STG', 'type' => 'revisions' } } }
+              }
+            ]
+          }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_PRD?include=rules%2Cdata_elements%2Cextensions')
+        .to_return(
+          status: 200,
+          body: { 'data' => prod_library, 'included' => [] }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      stub_request(:get, 'https://reactor.adobe.io/rules/RL123/rule_components?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: jsonapi_list_response(
+            type: 'rule_components',
+            items: [
+              {
+                id: 'RC123',
+                attributes: {
+                  'name' => 'Custom Code',
+                  'delegate_descriptor_id' => 'core::actions::custom-code',
+                  'settings' => '{"source":"console.log(1);","language":"javascript"}',
+                  'order' => 1,
+                  'rule_order' => 10.0
+                }
+              }
+            ]
+          ).tap do |payload|
+            payload['data'].first['relationships'] = {
+              'extension' => { 'data' => { 'id' => 'EX123', 'type' => 'extensions' } },
+              'latest_revision' => { 'data' => { 'id' => 'RE_RC123', 'type' => 'revisions' } }
+            }
+          end.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      stub_request(:get, 'https://reactor.adobe.io/revisions/RE_DEV')
+        .to_return(
+          status: 200,
+          body: {
+            'data' => {
+              'id' => 'RE_DEV',
+              'type' => 'revisions',
+              'attributes' => { 'activity_type' => 'updated' },
+              'relationships' => { 'entity' => { 'data' => { 'id' => 'RL123', 'type' => 'rules' } } }
+            },
+            'included' => [
+              {
+                'id' => 'RL123',
+                'type' => 'rules',
+                'attributes' => { 'name' => 'Order Confirmation', 'enabled' => true },
+                'relationships' => {
+                  'rule_components' => {
+                    'data' => [{ 'id' => 'RC123', 'type' => 'rule_components' }]
+                  }
+                }
+              }
+            ]
+          }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+
+      stub_request(:get, 'https://reactor.adobe.io/revisions/RE_STG')
+        .to_return(
+          status: 200,
+          body: {
+            'data' => {
+              'id' => 'RE_STG',
+              'type' => 'revisions',
+              'attributes' => { 'activity_type' => 'updated' },
+              'relationships' => { 'entity' => { 'data' => { 'id' => 'RL123', 'type' => 'rules' } } }
+            },
+            'included' => [
+              {
+                'id' => 'RL123',
+                'type' => 'rules',
+                'attributes' => { 'name' => 'Order Confirmation', 'enabled' => true },
+                'relationships' => {
+                  'rule_components' => {
+                    'data' => [{ 'id' => 'RC123', 'type' => 'rule_components' }]
+                  }
+                }
+              }
+            ]
+          }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    it 'returns a comprehensive upstream chain with normalized entries' do
+      result = client.libraries.comprehensive_upstream_chain_for_resource(
+        'RL123',
+        library_id: 'LB_DEV',
+        property_id: 'PR123',
+        resource_type: 'rules'
+      )
+
+      expect(result).to be_a(ReactorSDK::Resources::ComprehensiveUpstreamChain)
+      expect(result.target_comprehensive_resource).to be_a(ReactorSDK::Resources::ComprehensiveRule)
+      expect(result.target_comprehensive_resource.rule_components.map(&:id)).to eq(['RC123'])
+      expect(result.nearest_match.library.id).to eq('LB_STG')
+      expect(result.nearest_match.normalized_payload.dig('associations', 'rule_components').first['id']).to eq('RC123')
+      expect(result.entries.last.present?).to be(false)
+    end
+  end
 end

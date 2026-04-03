@@ -1,50 +1,19 @@
 # frozen_string_literal: true
 
-##
-# @file reactor_sdk.rb
-# @description Main entry point for the ReactorSDK gem.
-#
-#   Loads all components in the correct dependency order:
-#     1. External gems
-#     2. Version
-#     3. Errors          — no internal dependencies
-#     4. Infrastructure  — configuration, auth, connection, pagination
-#     5. Resources       — plain data objects, no endpoint dependencies
-#     6. Endpoints       — depend on resources and infrastructure
-#     7. Client          — depends on everything above
-#
-# @usage
-#   require "reactor_sdk"
-#
-#   client = ReactorSDK::Client.new(
-#     client_id:     ENV["ADOBE_CLIENT_ID"],
-#     client_secret: ENV["ADOBE_CLIENT_SECRET"],
-#     org_id:        ENV["ADOBE_IMS_ORG_ID"]
-#   )
-#
-
-# ── External gems ────────────────────────────────────────────────
 require 'faraday'
 require 'faraday/multipart'
-require 'faraday/retry'
 require 'faraday/net_http'
+require 'faraday/retry'
 require 'json'
 require 'uri'
 
-# ── Version ──────────────────────────────────────────────────────
 require_relative 'reactor_sdk/version'
-
-# ── Errors ───────────────────────────────────────────────────────
 require_relative 'reactor_sdk/error'
-
-# ── Infrastructure ───────────────────────────────────────────────
 require_relative 'reactor_sdk/configuration'
 require_relative 'reactor_sdk/authentication'
 require_relative 'reactor_sdk/rate_limiter'
 require_relative 'reactor_sdk/connection'
 require_relative 'reactor_sdk/paginator'
-
-# ── Resources ────────────────────────────────────────────────────
 require_relative 'reactor_sdk/resources/base_resource'
 require_relative 'reactor_sdk/resources/company'
 require_relative 'reactor_sdk/resources/property'
@@ -60,6 +29,8 @@ require_relative 'reactor_sdk/resources/extension_package'
 require_relative 'reactor_sdk/resources/extension_package_usage_authorization'
 require_relative 'reactor_sdk/resources/library'
 require_relative 'reactor_sdk/resources/library_with_resources'
+require_relative 'reactor_sdk/resources/upstream_chain_entry'
+require_relative 'reactor_sdk/resources/upstream_chain'
 require_relative 'reactor_sdk/resources/build'
 require_relative 'reactor_sdk/resources/revision'
 require_relative 'reactor_sdk/resources/audit_event'
@@ -67,11 +38,23 @@ require_relative 'reactor_sdk/resources/note'
 require_relative 'reactor_sdk/resources/profile'
 require_relative 'reactor_sdk/resources/search_results'
 require_relative 'reactor_sdk/resources/secret'
-
-# ── Parsers ──────────────────────────────────────────────────────
 require_relative 'reactor_sdk/response_parser'
-
-# ── Endpoints ────────────────────────────────────────────────────
+require_relative 'reactor_sdk/reference_extractor'
+require_relative 'reactor_sdk/resource_metadata'
+require_relative 'reactor_sdk/resource_normalizer'
+require_relative 'reactor_sdk/library_snapshot_builder'
+require_relative 'reactor_sdk/library_comparison_builder'
+require_relative 'reactor_sdk/resources/comprehensive_resource'
+require_relative 'reactor_sdk/resources/comprehensive_rule'
+require_relative 'reactor_sdk/resources/comprehensive_data_element'
+require_relative 'reactor_sdk/resources/comprehensive_extension'
+require_relative 'reactor_sdk/resources/library_snapshot_extension_index'
+require_relative 'reactor_sdk/resources/library_snapshot_index'
+require_relative 'reactor_sdk/resources/library_snapshot'
+require_relative 'reactor_sdk/resources/library_comparison_entry'
+require_relative 'reactor_sdk/resources/library_comparison'
+require_relative 'reactor_sdk/resources/comprehensive_upstream_chain_entry'
+require_relative 'reactor_sdk/resources/comprehensive_upstream_chain'
 require_relative 'reactor_sdk/endpoints/base_endpoint'
 require_relative 'reactor_sdk/endpoints/companies'
 require_relative 'reactor_sdk/endpoints/app_configurations'
@@ -93,6 +76,4 @@ require_relative 'reactor_sdk/endpoints/audit_events'
 require_relative 'reactor_sdk/endpoints/profiles'
 require_relative 'reactor_sdk/endpoints/search'
 require_relative 'reactor_sdk/endpoints/notes'
-
-# ── Client ───────────────────────────────────────────────────────
 require_relative 'reactor_sdk/client'

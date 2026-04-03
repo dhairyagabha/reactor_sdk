@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 88" role="img" aria-labelledby="title desc">
+  <title id="title">ReactorSDK</title>
+  <desc id="desc">ReactorSDK logo and wordmark</desc>
+  <defs>
+    <linearGradient id="reactor-stroke-a" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb7185"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="reactor-stroke-b" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="4" y="4" width="80" height="80" rx="22" fill="#171717"/>
+  <path d="M24 58 43 42 62 26" fill="none" stroke="#fdba74" stroke-linecap="round" stroke-linejoin="round" stroke-width="5"/>
+  <path d="M24 27.5c4.8-7.2 12.7-11.4 21.4-11.4 5.6 0 10.9 1.9 15.2 5.1" fill="none" stroke="url(#reactor-stroke-a)" stroke-linecap="round" stroke-width="4"/>
+  <path d="M62 57c-4.6 6.5-12.1 10.5-20.1 10.5-5.8 0-11.3-1.9-15.9-5.4" fill="none" stroke="url(#reactor-stroke-b)" stroke-linecap="round" stroke-width="4"/>
+  <circle cx="24" cy="58" r="7.5" fill="#f97316"/>
+  <circle cx="43" cy="42" r="7.5" fill="#fbbf24"/>
+  <circle cx="62" cy="26" r="7.5" fill="#ef4444"/>
+  <rect x="35" y="17" width="30" height="30" rx="9" fill="none" stroke="rgba(255,255,255,0.26)" stroke-width="3"/>
+
+  <text x="108" y="42" fill="#18181b" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="34" font-weight="750" letter-spacing="-0.03em">
+    ReactorSDK
+  </text>
+  <text x="108" y="63" fill="#71717a" font-family="ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12.5" font-weight="700" letter-spacing="0.22em">
+    ADOBE LAUNCH DATA COLLECTION
+  </text>
+</svg>

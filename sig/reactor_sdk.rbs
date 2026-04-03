@@ -65,15 +65,44 @@ module ReactorSDK
     end
 
     class Rules < BaseEndpoint
+      def upstream_chain: (String | Resources::Rule rule_or_id, library_id: String, property_id: String) -> Resources::UpstreamChain
+      def find_comprehensive: (String rule_id, library_id: String, property_id: String) -> Resources::ComprehensiveRule
+      def comprehensive_upstream_chain: (
+        String | Resources::Rule rule_or_id,
+        library_id: String,
+        property_id: String
+      ) -> Resources::ComprehensiveUpstreamChain
     end
 
     class RuleComponents < BaseEndpoint
     end
 
     class DataElements < BaseEndpoint
+      def upstream_chain: (String | Resources::DataElement data_element_or_id, library_id: String, property_id: String) -> Resources::UpstreamChain
+      def find_comprehensive: (
+        String data_element_id,
+        library_id: String,
+        property_id: String
+      ) -> Resources::ComprehensiveDataElement
+      def comprehensive_upstream_chain: (
+        String | Resources::DataElement data_element_or_id,
+        library_id: String,
+        property_id: String
+      ) -> Resources::ComprehensiveUpstreamChain
     end
 
     class Extensions < BaseEndpoint
+      def upstream_chain: (String | Resources::Extension extension_or_id, library_id: String, property_id: String) -> Resources::UpstreamChain
+      def find_comprehensive: (
+        String extension_id,
+        library_id: String,
+        property_id: String
+      ) -> Resources::ComprehensiveExtension
+      def comprehensive_upstream_chain: (
+        String | Resources::Extension extension_or_id,
+        library_id: String,
+        property_id: String
+      ) -> Resources::ComprehensiveUpstreamChain
     end
 
     class ExtensionPackages < BaseEndpoint
@@ -83,6 +112,24 @@ module ReactorSDK
     end
 
     class Libraries < BaseEndpoint
+      def find_snapshot: (String library_id, property_id: String) -> Resources::LibrarySnapshot
+      def compare: (
+        String current_library_id,
+        baseline_library_id: String,
+        property_id: String
+      ) -> Resources::LibraryComparison
+      def upstream_chain_for_resource: (
+        String | Resources::BaseResource resource_or_id,
+        library_id: String,
+        property_id: String,
+        ?resource_type: String
+      ) -> Resources::UpstreamChain
+      def comprehensive_upstream_chain_for_resource: (
+        String | Resources::BaseResource resource_or_id,
+        library_id: String,
+        property_id: String,
+        ?resource_type: String
+      ) -> Resources::ComprehensiveUpstreamChain
     end
 
     class Builds < BaseEndpoint
@@ -110,14 +157,19 @@ module ReactorSDK
       attr_reader type: String
       attr_reader attributes: Hash[untyped, untyped]
       attr_reader meta: Hash[untyped, untyped]
+      attr_reader relationships: Hash[untyped, untyped]
 
       def initialize: (
         id: String,
         type: String,
         ?attributes: Hash[untyped, untyped],
-        ?meta: Hash[untyped, untyped]
+        ?meta: Hash[untyped, untyped],
+        ?relationships: Hash[untyped, untyped]
       ) -> void
       def []: (String | Symbol key) -> untyped
+      def relationship_data: (String | Symbol name) -> Hash[untyped, untyped]?
+      def relationship_id: (String | Symbol name) -> String?
+      def relationship_ids: (String | Symbol name) -> Array[String]
       def ==: (untyped other) -> bool
       def to_h: -> Hash[Symbol, untyped]
     end
@@ -132,6 +184,163 @@ module ReactorSDK
       ) -> void
       def each: { (BaseResource) -> untyped } -> Array[BaseResource]
       def total_hits: -> Integer
+    end
+
+    class UpstreamChainEntry
+      attr_reader library: BaseResource
+      attr_reader stage: String?
+      attr_reader resource: BaseResource?
+      attr_reader revision_id: String?
+      attr_reader revision: Revision?
+
+      def initialize: (
+        library: BaseResource,
+        stage: String?,
+        resource: BaseResource?,
+        revision_id: String?,
+        revision: Revision?
+      ) -> void
+      def present?: -> bool
+      def entity_snapshot: -> Hash[untyped, untyped]?
+    end
+
+    class UpstreamChain
+      attr_reader resource_id: String
+      attr_reader resource_type: String?
+      attr_reader property_id: String
+      attr_reader target_library_id: String
+      attr_reader target_resource: BaseResource?
+      attr_reader target_revision_id: String?
+      attr_reader entries: Array[UpstreamChainEntry]
+
+      def initialize: (
+        resource_id: String,
+        resource_type: String?,
+        property_id: String,
+        target_library_id: String,
+        target_resource: BaseResource?,
+        target_revision_id: String?,
+        entries: Array[UpstreamChainEntry]
+      ) -> void
+      def each: { (UpstreamChainEntry) -> untyped } -> Array[UpstreamChainEntry]
+      def nearest_match: -> UpstreamChainEntry?
+      def found?: -> bool
+    end
+
+    class ComprehensiveResource
+      attr_reader resource: BaseResource
+      def associated_records: -> Array[BaseResource]
+      def normalized_payload: -> Hash[untyped, untyped]
+      def normalized_json: -> String
+    end
+
+    class ComprehensiveRule < ComprehensiveResource
+      attr_reader rule_components: Array[RuleComponent]
+    end
+
+    class ComprehensiveDataElement < ComprehensiveResource
+      attr_reader referenced_data_elements: Array[DataElement]
+      attr_reader impacted_rules: Array[Rule]
+    end
+
+    class ComprehensiveExtension < ComprehensiveResource
+      attr_reader data_elements: Array[DataElement]
+      attr_reader rule_components: Array[RuleComponent]
+      attr_reader rules: Array[Rule]
+    end
+
+    class LibrarySnapshot
+      attr_reader property_id: String
+      attr_reader library: LibraryWithResources
+      attr_reader rules: Array[Rule]
+      attr_reader data_elements: Array[DataElement]
+      attr_reader extensions: Array[Extension]
+      attr_reader rule_components: Array[RuleComponent]
+      attr_reader rule_components_by_rule_id: Hash[String, Array[RuleComponent]]
+      def top_level_resources: -> Array[BaseResource]
+      def all_resources: -> Array[BaseResource]
+      def resource_by_id: -> Hash[String, BaseResource]
+      def find_resource: (String resource_id) -> BaseResource?
+      def rule_components_for_rule: (String | Rule rule_or_id) -> Array[RuleComponent]
+      def referenced_data_elements_for: (String | DataElement data_element_or_id) -> Array[DataElement]
+      def impacted_rules_for: (String | DataElement data_element_or_id) -> Array[Rule]
+      def data_elements_for_extension: (String | Extension extension_or_id) -> Array[DataElement]
+      def rule_components_for_extension: (String | Extension extension_or_id) -> Array[RuleComponent]
+      def rules_for_extension: (String | Extension extension_or_id) -> Array[Rule]
+      def resource_revision_id: (String | BaseResource resource_or_id) -> String?
+      def comprehensive_resource: (String resource_id, ?resource_type: String) -> (ComprehensiveRule | ComprehensiveDataElement | ComprehensiveExtension)?
+    end
+
+    class ComprehensiveUpstreamChainEntry
+      attr_reader library: BaseResource
+      attr_reader stage: String?
+      attr_reader resource: BaseResource?
+      attr_reader revision_id: String?
+      attr_reader revision: Revision?
+      attr_reader comprehensive_resource: ComprehensiveResource?
+      def present?: -> bool
+      def entity_snapshot: -> Hash[untyped, untyped]?
+      def normalized_payload: -> Hash[untyped, untyped]?
+      def normalized_json: -> String?
+    end
+
+    class ComprehensiveUpstreamChain
+      attr_reader resource_id: String
+      attr_reader resource_type: String?
+      attr_reader property_id: String
+      attr_reader target_library_id: String
+      attr_reader target_resource: BaseResource?
+      attr_reader target_revision_id: String?
+      attr_reader target_comprehensive_resource: ComprehensiveResource?
+      attr_reader entries: Array[ComprehensiveUpstreamChainEntry]
+      def each: { (ComprehensiveUpstreamChainEntry) -> untyped } -> Array[ComprehensiveUpstreamChainEntry]
+      def nearest_match: -> ComprehensiveUpstreamChainEntry?
+      def found?: -> bool
+    end
+
+    class LibraryComparisonEntry
+      attr_reader resource_id: String
+      attr_reader resource_type: String
+      attr_reader current_library_id: String
+      attr_reader baseline_library_id: String
+      attr_reader current_resource: BaseResource?
+      attr_reader baseline_resource: BaseResource?
+      attr_reader current_revision_id: String?
+      attr_reader baseline_revision_id: String?
+      attr_reader current_comprehensive_resource: ComprehensiveResource?
+      attr_reader baseline_comprehensive_resource: ComprehensiveResource?
+      def resource_name: -> String?
+      def status: -> String
+      def added?: -> bool
+      def removed?: -> bool
+      def modified?: -> bool
+      def unchanged?: -> bool
+      def changed?: -> bool
+      def present_in_current?: -> bool
+      def present_in_baseline?: -> bool
+      def current_normalized_payload: -> Hash[untyped, untyped]?
+      def baseline_normalized_payload: -> Hash[untyped, untyped]?
+      def current_normalized_json: -> String
+      def baseline_normalized_json: -> String
+      def changeset_document: (?position: Integer) -> Hash[Symbol, untyped]
+    end
+
+    class LibraryComparison
+      attr_reader current_library_id: String
+      attr_reader baseline_library_id: String
+      attr_reader property_id: String
+      attr_reader current_snapshot: LibrarySnapshot
+      attr_reader baseline_snapshot: LibrarySnapshot
+      attr_reader entries: Array[LibraryComparisonEntry]
+      def current_library: -> LibraryWithResources
+      def baseline_library: -> LibraryWithResources
+      def each: { (LibraryComparisonEntry) -> untyped } -> Array[LibraryComparisonEntry]
+      def added_entries: -> Array[LibraryComparisonEntry]
+      def removed_entries: -> Array[LibraryComparisonEntry]
+      def modified_entries: -> Array[LibraryComparisonEntry]
+      def unchanged_entries: -> Array[LibraryComparisonEntry]
+      def changed_entries: -> Array[LibraryComparisonEntry]
+      def changeset_documents: (?include_unchanged: bool) -> Array[Hash[Symbol, untyped]]
     end
   end
 end

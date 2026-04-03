@@ -17,7 +17,11 @@ RSpec.describe ReactorSDK::Resources::BaseResource do
         'name' => 'Marketing Site',
         'enabled' => true
       },
-      meta: { 'page' => 1 }
+      meta: { 'page' => 1 },
+      relationships: {
+        'company' => { 'data' => { 'id' => 'CO123', 'type' => 'companies' } },
+        'rules' => { 'data' => [{ 'id' => 'RL123', 'type' => 'rules' }] }
+      }
     )
   end
 
@@ -62,6 +66,22 @@ RSpec.describe ReactorSDK::Resources::BaseResource do
     end
   end
 
+  describe 'relationship helpers' do
+    it 'returns the raw relationship data' do
+      expect(resource.relationship_data('company')).to eq(
+        'data' => { 'id' => 'CO123', 'type' => 'companies' }
+      )
+    end
+
+    it 'returns a single relationship id' do
+      expect(resource.relationship_id(:company)).to eq('CO123')
+    end
+
+    it 'returns collection relationship ids' do
+      expect(resource.relationship_ids(:rules)).to eq(['RL123'])
+    end
+  end
+
   describe '#==' do
     it 'compares resources by id and type' do
       same_resource = resource_class.new(
@@ -89,7 +109,11 @@ RSpec.describe ReactorSDK::Resources::BaseResource do
           'name' => 'Marketing Site',
           'enabled' => true
         },
-        meta: { 'page' => 1 }
+        meta: { 'page' => 1 },
+        relationships: {
+          'company' => { 'data' => { 'id' => 'CO123', 'type' => 'companies' } },
+          'rules' => { 'data' => [{ 'id' => 'RL123', 'type' => 'rules' }] }
+        }
       )
     end
   end

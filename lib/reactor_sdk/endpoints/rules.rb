@@ -63,6 +63,64 @@ module ReactorSDK
       end
 
       ##
+      # Resolves the rule across the ordered upstream library chain.
+      #
+      # This is a convenience wrapper around Libraries#upstream_chain_for_resource
+      # so rule workflows can stay resource-centric at the call site.
+      #
+      # @param rule_or_id [String, ReactorSDK::Resources::Rule]
+      # @param library_id [String] Adobe library ID used as the comparison root
+      # @param property_id [String] Adobe property ID containing the library chain
+      # @return [ReactorSDK::Resources::UpstreamChain]
+      #
+      def upstream_chain(rule_or_id, library_id:, property_id:)
+        libraries_endpoint.upstream_chain_for_resource(
+          rule_or_id,
+          library_id: library_id,
+          property_id: property_id,
+          resource_type: 'rules'
+        )
+      end
+
+      ##
+      # Fetches the rule from a library-context review snapshot together with
+      # its associated rule components and normalized review payload.
+      #
+      # @param rule_id [String]
+      # @param library_id [String]
+      # @param property_id [String]
+      # @return [ReactorSDK::Resources::ComprehensiveRule]
+      #
+      def find_comprehensive(rule_id, library_id:, property_id:)
+        snapshot = libraries_endpoint.find_snapshot(library_id, property_id: property_id)
+        comprehensive = snapshot.comprehensive_resource(rule_id, resource_type: 'rules')
+        unless comprehensive
+          raise ReactorSDK::ResourceNotFoundError,
+                "Rule #{rule_id} was not found in library #{library_id}"
+        end
+
+        comprehensive
+      end
+
+      ##
+      # Resolves the rule across the ordered upstream chain and returns
+      # comprehensive review objects for the target and upstream entries.
+      #
+      # @param rule_or_id [String, ReactorSDK::Resources::Rule]
+      # @param library_id [String]
+      # @param property_id [String]
+      # @return [ReactorSDK::Resources::ComprehensiveUpstreamChain]
+      #
+      def comprehensive_upstream_chain(rule_or_id, library_id:, property_id:)
+        libraries_endpoint.comprehensive_upstream_chain_for_resource(
+          rule_or_id,
+          library_id: library_id,
+          property_id: property_id,
+          resource_type: 'rules'
+        )
+      end
+
+      ##
       # Retrieves the origin revision head for a rule.
       #
       # @param rule_id [String] Adobe rule ID
@@ -166,6 +224,16 @@ module ReactorSDK
       #
       def rule_component_notes(rule_id)
         list_resources("/rules/#{rule_id}/rule_component_notes", Resources::RuleComponent)
+      end
+
+      private
+
+      def libraries_endpoint
+        @libraries_endpoint ||= Endpoints::Libraries.new(
+          connection: @connection,
+          paginator: @paginator,
+          parser: @parser
+        )
       end
     end
   end

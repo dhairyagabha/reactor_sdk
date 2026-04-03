@@ -104,12 +104,77 @@ module ReactorSDK
         fetch_resource("/extensions/#{extension_id}/origin", Resources::Extension)
       end
 
+      ##
+      # Resolves the extension across the ordered upstream library chain.
+      #
+      # @param extension_or_id [String, ReactorSDK::Resources::Extension]
+      # @param library_id [String] Adobe library ID used as the comparison root
+      # @param property_id [String] Adobe property ID containing the library chain
+      # @return [ReactorSDK::Resources::UpstreamChain]
+      #
+      def upstream_chain(extension_or_id, library_id:, property_id:)
+        libraries_endpoint.upstream_chain_for_resource(
+          extension_or_id,
+          library_id: library_id,
+          property_id: property_id,
+          resource_type: 'extensions'
+        )
+      end
+
+      ##
+      # Fetches the extension from a library-context review snapshot together
+      # with dependent resources and normalized review payload.
+      #
+      # @param extension_id [String]
+      # @param library_id [String]
+      # @param property_id [String]
+      # @return [ReactorSDK::Resources::ComprehensiveExtension]
+      #
+      def find_comprehensive(extension_id, library_id:, property_id:)
+        snapshot = libraries_endpoint.find_snapshot(library_id, property_id: property_id)
+        comprehensive = snapshot.comprehensive_resource(extension_id, resource_type: 'extensions')
+        unless comprehensive
+          raise ReactorSDK::ResourceNotFoundError,
+                "Extension #{extension_id} was not found in library #{library_id}"
+        end
+
+        comprehensive
+      end
+
+      ##
+      # Resolves the extension across the ordered upstream chain using
+      # snapshot-aware comprehensive review objects.
+      #
+      # @param extension_or_id [String, ReactorSDK::Resources::Extension]
+      # @param library_id [String]
+      # @param property_id [String]
+      # @return [ReactorSDK::Resources::ComprehensiveUpstreamChain]
+      #
+      def comprehensive_upstream_chain(extension_or_id, library_id:, property_id:)
+        libraries_endpoint.comprehensive_upstream_chain_for_resource(
+          extension_or_id,
+          library_id: library_id,
+          property_id: property_id,
+          resource_type: 'extensions'
+        )
+      end
+
       def list_notes(extension_id)
         list_notes_for_path("/extensions/#{extension_id}/notes")
       end
 
       def create_note(extension_id, text)
         create_note_for_path("/extensions/#{extension_id}/notes", text)
+      end
+
+      private
+
+      def libraries_endpoint
+        @libraries_endpoint ||= Endpoints::Libraries.new(
+          connection: @connection,
+          paginator: @paginator,
+          parser: @parser
+        )
       end
     end
   end

@@ -167,7 +167,8 @@ module ReactorSDK
             id: raw.fetch('id'),
             type: raw.fetch('type'),
             attributes: raw.fetch('attributes', {}),
-            meta: raw.fetch('meta', {})
+            meta: raw.fetch('meta', {}),
+            relationships: raw.fetch('relationships', {})
           )
           resource.instance_variable_set(
             :@revision_id,

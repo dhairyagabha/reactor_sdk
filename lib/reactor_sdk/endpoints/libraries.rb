@@ -100,6 +100,46 @@ module ReactorSDK
         build_library_with_resources(response)
       end
 
+      ##
+      # Fetches a library snapshot enriched with associated records needed
+      # for review workflows.
+      #
+      # This additive helper builds on find_with_resources and then resolves
+      # rule components for every rule present in the library snapshot.
+      #
+      # The returned object is intentionally built fresh on each call so
+      # review workflows never read stale snapshot state after writes.
+      #
+      # @param library_id [String] Adobe library ID
+      # @param property_id [String] Adobe property ID containing the library
+      # @return [ReactorSDK::Resources::LibrarySnapshot]
+      #
+      def find_snapshot(library_id, property_id:)
+        snapshot_builder.build(library_id, property_id: property_id)
+      end
+
+      ##
+      # Compares two libraries and returns per-resource review details that
+      # can be passed directly into Changeset-style diff tooling.
+      #
+      # The first library is treated as the current version and the second
+      # library is treated as the baseline version. Changeset-style document
+      # helpers therefore map baseline content to old_content and current
+      # content to new_content.
+      #
+      # @param current_library_id [String] Library being reviewed
+      # @param baseline_library_id [String] Library used as the comparison baseline
+      # @param property_id [String] Adobe property ID containing both libraries
+      # @return [ReactorSDK::Resources::LibraryComparison]
+      #
+      def compare(current_library_id, baseline_library_id:, property_id:)
+        comparison_builder.build(
+          current_library_id,
+          baseline_library_id: baseline_library_id,
+          property_id: property_id
+        )
+      end
+
       # ── Create ──────────────────────────────────────────────────
 
       ##
@@ -524,6 +564,77 @@ module ReactorSDK
         end
       end
 
+      ##
+      # Resolves a single resource across the ordered upstream library chain.
+      #
+      # This is the resource-level convenience wrapper built on top of
+      # upstream_libraries and find_with_resources. It allows callers to ask
+      # for upstream information directly from a rule, data element, or
+      # extension ID without hand-rolling the traversal loop.
+      #
+      # The returned UpstreamChain object includes:
+      #   - the target library context
+      #   - the target resource and target revision_id when present
+      #   - one UpstreamChainEntry per upstream library, nearest first
+      #
+      # @param resource_or_id [String, ReactorSDK::Resources::BaseResource]
+      # @param library_id     [String] Adobe library ID used as the comparison root
+      # @param property_id    [String] Adobe property ID containing the library chain
+      # @param resource_type  [String, nil] Optional JSON:API type hint
+      # @return [ReactorSDK::Resources::UpstreamChain]
+      #
+      def upstream_chain_for_resource(resource_or_id, library_id:, property_id:, resource_type: nil)
+        resource_id = extract_resource_id(resource_or_id)
+        target_library = find_with_resources(library_id)
+        target_resource = target_library.all_resources.find { |resource| resource.id == resource_id }
+        target_revision_id = target_library.resource_index[resource_id]
+
+        entries = upstream_libraries(library_id, property_id: property_id).map do |library|
+          build_upstream_chain_entry(library, resource_id)
+        end
+
+        Resources::UpstreamChain.new(
+          resource_id: resource_id,
+          resource_type: resource_type || extract_resource_type(resource_or_id) || target_resource&.type,
+          property_id: property_id,
+          target_library_id: library_id,
+          target_resource: target_resource,
+          target_revision_id: target_revision_id,
+          entries: entries
+        )
+      end
+
+      ##
+      # Resolves a resource across the ordered upstream library chain using
+      # snapshot-aware comprehensive resource wrappers.
+      #
+      # @param resource_or_id [String, ReactorSDK::Resources::BaseResource]
+      # @param library_id [String]
+      # @param property_id [String]
+      # @param resource_type [String, nil]
+      # @return [ReactorSDK::Resources::ComprehensiveUpstreamChain]
+      #
+      def comprehensive_upstream_chain_for_resource(resource_or_id, library_id:, property_id:, resource_type: nil)
+        resource_id = extract_resource_id(resource_or_id)
+        snapshot_cache = {}
+        target_context = resolve_comprehensive_target_context(
+          resource_or_id,
+          resource_id,
+          library_id,
+          property_id,
+          snapshot_cache,
+          resource_type
+        )
+
+        build_comprehensive_upstream_chain(
+          resource_id,
+          library_id: library_id,
+          property_id: property_id,
+          target_context: target_context,
+          snapshot_cache: snapshot_cache
+        )
+      end
+
       private
 
       ##
@@ -579,6 +690,168 @@ module ReactorSDK
         return [] if current_index.nil?
 
         UPSTREAM_STAGE_ORDER[(current_index + 1)..]
+      end
+
+      ##
+      # Builds one upstream-chain entry for a specific library and resource ID.
+      #
+      # @param library     [ReactorSDK::Resources::Library]
+      # @param resource_id [String]
+      # @return [ReactorSDK::Resources::UpstreamChainEntry]
+      #
+      def build_upstream_chain_entry(library, resource_id)
+        library_with_resources = find_with_resources(library.id)
+        matched_resource = library_with_resources.all_resources.find { |resource| resource.id == resource_id }
+        revision_id = library_with_resources.resource_index[resource_id]
+        revision = revision_id ? revisions_endpoint.find(revision_id) : nil
+
+        Resources::UpstreamChainEntry.new(
+          library: library,
+          stage: fetch_library_stage(library.id),
+          resource: matched_resource,
+          revision_id: revision_id,
+          revision: revision
+        )
+      end
+
+      def build_comprehensive_upstream_chain_entry(library, resource_id, property_id:, resource_type:, snapshot_cache:)
+        snapshot = fetch_snapshot(library.id, property_id: property_id, cache: snapshot_cache)
+        resource = snapshot.find_resource(resource_id)
+        revision_id = snapshot.resource_revision_id(resource_id)
+        revision = revision_id ? revisions_endpoint.find(revision_id) : nil
+
+        Resources::ComprehensiveUpstreamChainEntry.new(
+          library: library,
+          stage: fetch_library_stage(library.id),
+          resource: resource,
+          revision_id: revision_id,
+          revision: revision,
+          comprehensive_resource: snapshot.comprehensive_resource(resource_id, resource_type: resource_type)
+        )
+      end
+
+      def resolve_comprehensive_target_context(
+        resource_or_id,
+        resource_id,
+        library_id,
+        property_id,
+        snapshot_cache,
+        resource_type
+      )
+        snapshot = fetch_snapshot(library_id, property_id: property_id, cache: snapshot_cache)
+        build_comprehensive_target_context(resource_or_id, resource_id, snapshot, resource_type)
+      end
+
+      def build_comprehensive_target_context(resource_or_id, resource_id, snapshot, resource_type)
+        resource = snapshot.find_resource(resource_id)
+        resolved_resource_type = resource_type || extract_resource_type(resource_or_id) || resource&.type
+
+        {
+          resource: resource,
+          resource_type: resolved_resource_type,
+          revision_id: snapshot.resource_revision_id(resource_id),
+          comprehensive_resource: snapshot.comprehensive_resource(resource_id, resource_type: resolved_resource_type)
+        }
+      end
+
+      def build_comprehensive_upstream_chain(resource_id, library_id:, property_id:, target_context:, snapshot_cache:)
+        Resources::ComprehensiveUpstreamChain.new(
+          resource_id: resource_id,
+          resource_type: target_context.fetch(:resource_type),
+          property_id: property_id,
+          target_library_id: library_id,
+          target_resource: target_context.fetch(:resource),
+          target_revision_id: target_context.fetch(:revision_id),
+          target_comprehensive_resource: target_context.fetch(:comprehensive_resource),
+          entries: build_comprehensive_upstream_entries(
+            library_id,
+            property_id,
+            resource_id,
+            target_context.fetch(:resource_type),
+            snapshot_cache
+          )
+        )
+      end
+
+      def build_comprehensive_upstream_entries(library_id, property_id, resource_id, resource_type, snapshot_cache)
+        upstream_libraries(library_id, property_id: property_id).map do |library|
+          build_comprehensive_upstream_chain_entry(
+            library,
+            resource_id,
+            property_id: property_id,
+            resource_type: resource_type,
+            snapshot_cache: snapshot_cache
+          )
+        end
+      end
+
+      def fetch_snapshot(library_id, property_id:, cache:)
+        cache.fetch(snapshot_cache_key(library_id, property_id)) do
+          cache[snapshot_cache_key(library_id, property_id)] = find_snapshot(library_id, property_id: property_id)
+        end
+      end
+
+      ##
+      # Normalizes a resource object or raw resource ID into an Adobe ID string.
+      #
+      # @param resource_or_id [String, #id]
+      # @return [String]
+      #
+      def extract_resource_id(resource_or_id)
+        return resource_or_id.id if resource_or_id.respond_to?(:id)
+
+        resource_or_id
+      end
+
+      ##
+      # Reads the resource type from a resource object when available.
+      #
+      # @param resource_or_id [String, #type]
+      # @return [String, nil]
+      #
+      def extract_resource_type(resource_or_id)
+        return resource_or_id.type if resource_or_id.respond_to?(:type)
+
+        nil
+      end
+
+      ##
+      # Builds a lightweight revisions endpoint sharing this endpoint's deps.
+      #
+      # @return [ReactorSDK::Endpoints::Revisions]
+      #
+      def revisions_endpoint
+        @revisions_endpoint ||= Endpoints::Revisions.new(
+          connection: @connection,
+          paginator: @paginator,
+          parser: @parser
+        )
+      end
+
+      def rule_components_endpoint
+        @rule_components_endpoint ||= Endpoints::RuleComponents.new(
+          connection: @connection,
+          paginator: @paginator,
+          parser: @parser
+        )
+      end
+
+      def snapshot_builder
+        @snapshot_builder ||= ReactorSDK::LibrarySnapshotBuilder.new(
+          library_loader: method(:find_with_resources),
+          revisions_endpoint: revisions_endpoint,
+          rule_components_endpoint: rule_components_endpoint
+        )
+      end
+
+      def comparison_builder
+        @comparison_builder ||= ReactorSDK::LibraryComparisonBuilder.new(
+          snapshot_loader: method(:find_snapshot)
+        )
+      end
+
+      def snapshot_cache_key(library_id, property_id)
+        "#{property_id}:#{library_id}"
       end
 
       ##

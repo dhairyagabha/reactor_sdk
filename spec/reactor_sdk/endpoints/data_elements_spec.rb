@@ -230,4 +230,148 @@ RSpec.describe ReactorSDK::Endpoints::DataElements do
       expect(client.data_elements.create_note('DE123', 'DE note')).to be_a(ReactorSDK::Resources::Note)
     end
   end
+
+  describe '#upstream_chain' do
+    before do
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_DEV')
+        .to_return(status: 200, body: jsonapi_response(type: 'libraries', id: 'LB_DEV', attributes: { 'name' => 'Dev Library', 'state' => 'development' }).to_json)
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_STG')
+        .to_return(status: 200, body: jsonapi_response(type: 'libraries', id: 'LB_STG', attributes: { 'name' => 'Staging Library', 'state' => 'development' }).to_json)
+      stub_request(:get, 'https://reactor.adobe.io/properties/PR123/libraries?page%5Bsize%5D=100')
+        .to_return(
+          status: 200,
+          body: {
+            'data' => [
+              { 'id' => 'LB_DEV', 'type' => 'libraries', 'attributes' => { 'name' => 'Dev Library', 'state' => 'development' } },
+              { 'id' => 'LB_STG', 'type' => 'libraries', 'attributes' => { 'name' => 'Staging Library', 'state' => 'development' } }
+            ],
+            'links' => { 'next' => nil }
+          }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_DEV/relationships/environment')
+        .to_return(status: 200, body: { 'data' => { 'id' => 'EN_DEV', 'type' => 'environments' } }.to_json)
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_STG/relationships/environment')
+        .to_return(status: 200, body: { 'data' => { 'id' => 'EN_STG', 'type' => 'environments' } }.to_json)
+      stub_request(:get, 'https://reactor.adobe.io/environments/EN_DEV')
+        .to_return(status: 200, body: jsonapi_response(type: 'environments', id: 'EN_DEV', attributes: { 'stage' => 'development' }).to_json)
+      stub_request(:get, 'https://reactor.adobe.io/environments/EN_STG')
+        .to_return(status: 200, body: jsonapi_response(type: 'environments', id: 'EN_STG', attributes: { 'stage' => 'staging' }).to_json)
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_DEV?include=rules%2Cdata_elements%2Cextensions')
+        .to_return(
+          status: 200,
+          body: {
+            'data' => { 'id' => 'LB_DEV', 'type' => 'libraries', 'attributes' => { 'name' => 'Dev Library', 'state' => 'development' } },
+            'included' => [
+              {
+                'id' => 'DE123',
+                'type' => 'data_elements',
+                'attributes' => { 'name' => 'Page Name' },
+                'relationships' => { 'latest_revision' => { 'data' => { 'id' => 'RE_DEV', 'type' => 'revisions' } } }
+              }
+            ]
+          }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/libraries/LB_STG?include=rules%2Cdata_elements%2Cextensions')
+        .to_return(
+          status: 200,
+          body: {
+            'data' => { 'id' => 'LB_STG', 'type' => 'libraries', 'attributes' => { 'name' => 'Staging Library', 'state' => 'development' } },
+            'included' => [
+              {
+                'id' => 'DE123',
+                'type' => 'data_elements',
+                'attributes' => { 'name' => 'Page Name' },
+                'relationships' => { 'latest_revision' => { 'data' => { 'id' => 'RE_STG', 'type' => 'revisions' } } }
+              }
+            ]
+          }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+      stub_request(:get, 'https://reactor.adobe.io/revisions/RE_STG')
+        .to_return(
+          status: 200,
+          body: {
+            'data' => {
+              'id' => 'RE_STG',
+              'type' => 'revisions',
+              'attributes' => { 'activity_type' => 'updated' },
+              'relationships' => { 'entity' => { 'data' => { 'id' => 'DE123', 'type' => 'data_elements' } } }
+            },
+            'included' => [
+              { 'id' => 'DE123', 'type' => 'data_elements', 'attributes' => { 'name' => 'Page Name' } }
+            ]
+          }.to_json,
+          headers: { 'Content-Type' => 'application/json' }
+        )
+    end
+
+    it 'returns an UpstreamChain for the data element' do
+      result = client.data_elements.upstream_chain('DE123', library_id: 'LB_DEV', property_id: 'PR123')
+
+      expect(result).to be_a(ReactorSDK::Resources::UpstreamChain)
+      expect(result.resource_type).to eq('data_elements')
+      expect(result.nearest_match.library.id).to eq('LB_STG')
+    end
+  end
+
+  describe '#find_comprehensive' do
+    let(:snapshot) { instance_double(ReactorSDK::Resources::LibrarySnapshot) }
+    let(:libraries_endpoint) { instance_double(ReactorSDK::Endpoints::Libraries) }
+    let(:comprehensive_data_element) do
+      ReactorSDK::Resources::ComprehensiveDataElement.new(
+        resource: ReactorSDK::Resources::DataElement.new(
+          id: 'DE123',
+          type: 'data_elements',
+          attributes: { 'name' => 'Page Name', 'settings' => '{}' }
+        ),
+        referenced_data_elements: [],
+        impacted_rules: []
+      )
+    end
+
+    before do
+      allow(client.data_elements).to receive(:libraries_endpoint).and_return(libraries_endpoint)
+      allow(libraries_endpoint)
+        .to receive(:find_snapshot)
+        .with('LB_DEV', property_id: 'PR123')
+        .and_return(snapshot)
+    end
+
+    it 'returns the comprehensive data element from the snapshot' do
+      allow(snapshot).to receive(:comprehensive_resource)
+        .with('DE123', resource_type: 'data_elements')
+        .and_return(comprehensive_data_element)
+
+      expect(
+        client.data_elements.find_comprehensive('DE123', library_id: 'LB_DEV', property_id: 'PR123')
+      ).to eq(comprehensive_data_element)
+    end
+
+    it 'raises ResourceNotFoundError when the data element is missing from the snapshot' do
+      allow(snapshot).to receive(:comprehensive_resource)
+        .with('DE123', resource_type: 'data_elements')
+        .and_return(nil)
+
+      expect do
+        client.data_elements.find_comprehensive('DE123', library_id: 'LB_DEV', property_id: 'PR123')
+      end.to raise_error(ReactorSDK::ResourceNotFoundError)
+    end
+  end
+
+  describe '#comprehensive_upstream_chain' do
+    it 'delegates to the Libraries endpoint helper' do
+      chain = instance_double(ReactorSDK::Resources::ComprehensiveUpstreamChain)
+      libraries_endpoint = instance_double(ReactorSDK::Endpoints::Libraries)
+
+      allow(client.data_elements).to receive(:libraries_endpoint).and_return(libraries_endpoint)
+      allow(libraries_endpoint)
+        .to receive(:comprehensive_upstream_chain_for_resource)
+        .with('DE123', library_id: 'LB_DEV', property_id: 'PR123', resource_type: 'data_elements')
+        .and_return(chain)
+
+      expect(client.data_elements.comprehensive_upstream_chain('DE123', library_id: 'LB_DEV', property_id: 'PR123')).to eq(chain)
+    end
+  end
 end
