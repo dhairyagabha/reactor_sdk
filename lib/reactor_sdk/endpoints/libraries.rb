@@ -160,7 +160,8 @@ module ReactorSDK
           current_library_id,
           baseline_library_id: baseline_library_id,
           property_id: property_id,
-          current_snapshot: fetch_effective_snapshot(current_library_id, property_id: property_id, cache: snapshot_cache),
+          current_snapshot: fetch_effective_snapshot(current_library_id, property_id: property_id,
+                                                                         cache: snapshot_cache),
           baseline_snapshot: fetch_effective_snapshot(
             baseline_library_id,
             property_id: property_id,
@@ -908,8 +909,8 @@ module ReactorSDK
 
       def merge_resource_lists(direct_resources, inherited_resources)
         direct_resources = Array(direct_resources)
-        direct_resource_ids = direct_resources.each_with_object({}) do |resource, ids|
-          ids[resource.id] = true
+        direct_resource_ids = direct_resources.to_h do |resource|
+          [resource.id, true]
         end
 
         direct_resources + Array(inherited_resources).reject { |resource| direct_resource_ids.key?(resource.id) }
