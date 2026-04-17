@@ -5,9 +5,11 @@
 # @description A richer Library resource returned by Libraries#find_with_resources.
 #
 #   When fetching GET /libraries/:id?include=rules,data_elements,extensions
-#   Adobe returns the library alongside all its associated resources in the
-#   JSON:API included array. Each included resource carries a relationships
-#   hash containing its current revision ID.
+#   Adobe may return the library alongside all its associated resources in the
+#   JSON:API included array. When that payload is omitted, the SDK falls back
+#   to the related library resource endpoints and normalizes the result into
+#   the same shape. Each resource carries a relationships hash containing its
+#   current revision ID.
 #
 #   This class wraps that response and exposes:
 #     - All standard Library attributes (name, state, etc.)
@@ -86,12 +88,21 @@ module ReactorSDK
         type:,
         attributes:          {},
         meta:                {},
+        relationships:       {},
         included_resources:  {}
       )
-        super(id: id, type: type, attributes: attributes, meta: meta)
-        @rules         = build_resources(included_resources['rules'],         Resources::Rule)
-        @data_elements = build_resources(included_resources['data_elements'], Resources::DataElement)
-        @extensions    = build_resources(included_resources['extensions'],    Resources::Extension)
+        super(
+          id: id,
+          type: type,
+          attributes: normalize_value(attributes),
+          meta: normalize_value(meta),
+          relationships: normalize_value(relationships)
+        )
+
+        normalized_included_resources = normalize_value(included_resources)
+        @rules         = build_resources(resource_group(normalized_included_resources, 'rules'),         Resources::Rule)
+        @data_elements = build_resources(resource_group(normalized_included_resources, 'data_elements'), Resources::DataElement)
+        @extensions    = build_resources(resource_group(normalized_included_resources, 'extensions'),    Resources::Extension)
       end
 
       ##
@@ -163,16 +174,17 @@ module ReactorSDK
       #
       def build_resources(raw_resources, resource_class)
         Array(raw_resources).map do |raw|
+          normalized_raw = normalize_value(raw)
           resource = resource_class.new(
-            id: raw.fetch('id'),
-            type: raw.fetch('type'),
-            attributes: raw.fetch('attributes', {}),
-            meta: raw.fetch('meta', {}),
-            relationships: raw.fetch('relationships', {})
+            id: normalized_raw.fetch('id'),
+            type: normalized_raw.fetch('type'),
+            attributes: normalized_raw.fetch('attributes', {}),
+            meta: normalized_raw.fetch('meta', {}),
+            relationships: normalized_raw.fetch('relationships', {})
           )
           resource.instance_variable_set(
             :@revision_id,
-            extract_revision_id(raw)
+            extract_revision_id(normalized_raw)
           )
           resource.singleton_class.attr_reader :revision_id
           resource
@@ -188,6 +200,23 @@ module ReactorSDK
       #
       def extract_revision_id(raw)
         raw.dig('relationships', 'latest_revision', 'data', 'id')
+      end
+
+      def resource_group(included_resources, key)
+        included_resources.fetch(key, [])
+      end
+
+      def normalize_value(value)
+        case value
+        when Hash
+          value.each_with_object({}) do |(key, nested_value), normalized|
+            normalized[key.to_s] = normalize_value(nested_value)
+          end
+        when Array
+          value.map { |item| normalize_value(item) }
+        else
+          value
+        end
       end
     end
   end

@@ -113,6 +113,7 @@ module ReactorSDK
 
     class Libraries < BaseEndpoint
       def find_snapshot: (String library_id, property_id: String) -> Resources::LibrarySnapshot
+      def find_direct_snapshot: (String library_id, property_id: String) -> Resources::LibrarySnapshot
       def compare: (
         String current_library_id,
         baseline_library_id: String,

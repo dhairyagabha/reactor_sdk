@@ -61,6 +61,23 @@ RSpec.describe ReactorSDK::Authentication do
         auth.access_token
         expect(WebMock).to have_requested(:post, 'http://localhost:9292/token').once
       end
+
+      it 'refreshes an expired cached token when auto refresh is enabled' do
+        stub_request(:post, 'http://localhost:9292/token')
+          .to_return(
+            { status: 200, body: { access_token: 'fresh_token', expires_in: 86_400 }.to_json,
+              headers: { 'Content-Type' => 'application/json' } },
+            { status: 200, body: { access_token: 'refreshed_token', expires_in: 86_400 }.to_json,
+              headers: { 'Content-Type' => 'application/json' } }
+          )
+
+        expect(auth.access_token).to eq('fresh_token')
+
+        auth.instance_variable_set(:@token_expiry, Time.now.utc - 1)
+
+        expect(auth.access_token).to eq('refreshed_token')
+        expect(WebMock).to have_requested(:post, 'http://localhost:9292/token').twice
+      end
     end
 
     context 'when the token fetch fails' do
@@ -78,6 +95,40 @@ RSpec.describe ReactorSDK::Authentication do
           .to raise_error(ReactorSDK::AuthenticationError) do |e|
             expect(e.status).to eq(401)
           end
+      end
+    end
+
+    context 'when auto_refresh_token is disabled' do
+      let(:config) do
+        ReactorSDK::Configuration.new(
+          client_id: 'test_client_id',
+          client_secret: 'test_client_secret',
+          org_id: 'test_org_id',
+          ims_token_url: 'http://localhost:9292/token',
+          auto_refresh_token: false
+        )
+      end
+
+      before do
+        stub_request(:post, 'http://localhost:9292/token')
+          .to_return(
+            status: 200,
+            body: { access_token: 'fresh_token', expires_in: 86_400 }.to_json,
+            headers: { 'Content-Type' => 'application/json' }
+          )
+      end
+
+      it 'still fetches the initial token' do
+        expect(auth.access_token).to eq('fresh_token')
+      end
+
+      it 'raises when a cached token has expired' do
+        auth.access_token
+        auth.instance_variable_set(:@token_expiry, Time.now.utc - 1)
+
+        expect { auth.access_token }
+          .to raise_error(ReactorSDK::AuthenticationError, /auto_refresh_token is disabled/)
+        expect(WebMock).to have_requested(:post, 'http://localhost:9292/token').once
       end
     end
   end

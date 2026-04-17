@@ -57,7 +57,9 @@ module ReactorSDK
     # @param ims_token_url       [String]  Override IMS token URL — for testing only (optional)
     # @param timeout             [Integer] HTTP timeout in seconds (optional)
     # @param logger              [Logger]  Custom logger instance (optional)
-    # @param auto_refresh_token  [Boolean] Auto-refresh token before expiry (optional)
+    # @param auto_refresh_token  [Boolean] Auto-refresh token before expiry.
+    #   When false, the initial token is still fetched, but later expiry
+    #   raises AuthenticationError instead of refreshing. (optional)
     # @raise [ReactorSDK::ConfigurationError] if any required value is blank
     #
     def initialize(

@@ -50,7 +50,12 @@ module ReactorSDK
     end
 
     ##
-    # Returns a valid access token, fetching or refreshing if necessary.
+    # Returns a valid access token, fetching it on first use and refreshing it
+    # on later calls when needed.
+    #
+    # When auto_refresh_token is false, an expired cached token raises
+    # AuthenticationError instead of silently refreshing.
+    #
     # Thread-safe — uses a Mutex to prevent parallel token fetches in
     # multi-threaded environments such as Puma.
     #
@@ -59,21 +64,33 @@ module ReactorSDK
     #
     def access_token
       @mutex.synchronize do
-        fetch_token if token_expired?
+        fetch_token if @token.nil?
+        refresh_token_if_needed if token_expired?
         @token
       end
     end
 
     private
 
+    def refresh_token_if_needed
+      if @config.auto_refresh_token
+        fetch_token
+      else
+        raise AuthenticationError,
+              'Adobe IMS access token expired and auto_refresh_token is disabled. ' \
+              'Recreate the client or enable automatic refresh.'
+      end
+    end
+
     ##
-    # Returns true if the token is missing or within the refresh buffer window.
+    # Returns true if the cached token is within the refresh buffer window.
     #
     # @return [Boolean]
     #
     def token_expired?
-      @token.nil? ||
-        Time.now.utc >= (@token_expiry - REFRESH_BUFFER_SECONDS)
+      return false if @token_expiry.nil?
+
+      Time.now.utc >= (@token_expiry - REFRESH_BUFFER_SECONDS)
     end
 
     ##

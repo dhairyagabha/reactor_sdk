@@ -78,10 +78,11 @@ module ReactorSDK
       ##
       # Fetches a library with all its associated resources included.
       #
-      # Calls GET /libraries/:id?include=rules,data_elements,extensions
-      # which returns the library alongside all its resources in the
-      # JSON:API included array. Each included resource carries its
-      # current revision ID in its relationships hash.
+      # Calls GET /libraries/:id?include=rules,data_elements,extensions.
+      # When Adobe returns the JSON:API included payload, the SDK uses it
+      # directly. When Adobe omits included, the SDK falls back to the
+      # related /rules, /data_elements, and /extensions endpoints so the
+      # result still reflects the library's directly attached resources.
       #
       # Returns a LibraryWithResources object exposing:
       #   - All standard library attributes
@@ -97,15 +98,20 @@ module ReactorSDK
           "/libraries/#{library_id}",
           params: { 'include' => 'rules,data_elements,extensions' }
         )
-        build_library_with_resources(response)
+        build_library_with_resources(response, library_id: library_id)
       end
 
       ##
-      # Fetches a library snapshot enriched with associated records needed
-      # for review workflows.
+      # Fetches the effective library snapshot used by Launch review flows.
       #
-      # This additive helper builds on find_with_resources and then resolves
-      # rule components for every rule present in the library snapshot.
+      # Effective snapshots include both:
+      #   - resources directly attached to the target library
+      #   - inherited upstream resources when the target library does not
+      #     override them
+      #
+      # Rule components are resolved against the effective rule revision so
+      # inherited rules carry the point-in-time component set a reviewer
+      # would see in Adobe Launch.
       #
       # The returned object is intentionally built fresh on each call so
       # review workflows never read stale snapshot state after writes.
@@ -115,7 +121,22 @@ module ReactorSDK
       # @return [ReactorSDK::Resources::LibrarySnapshot]
       #
       def find_snapshot(library_id, property_id:)
-        snapshot_builder.build(library_id, property_id: property_id)
+        fetch_effective_snapshot(library_id, property_id: property_id, cache: {})
+      end
+
+      ##
+      # Fetches the direct snapshot for a library without inheriting any
+      # upstream resources.
+      #
+      # This preserves the pre-1.0 direct-only snapshot behavior for callers
+      # that need to inspect exactly what is attached to one library.
+      #
+      # @param library_id [String] Adobe library ID
+      # @param property_id [String] Adobe property ID containing the library
+      # @return [ReactorSDK::Resources::LibrarySnapshot]
+      #
+      def find_direct_snapshot(library_id, property_id:)
+        direct_snapshot_builder.build(library_id, property_id: property_id)
       end
 
       ##
@@ -133,10 +154,18 @@ module ReactorSDK
       # @return [ReactorSDK::Resources::LibraryComparison]
       #
       def compare(current_library_id, baseline_library_id:, property_id:)
+        snapshot_cache = {}
+
         comparison_builder.build(
           current_library_id,
           baseline_library_id: baseline_library_id,
-          property_id: property_id
+          property_id: property_id,
+          current_snapshot: fetch_effective_snapshot(current_library_id, property_id: property_id, cache: snapshot_cache),
+          baseline_snapshot: fetch_effective_snapshot(
+            baseline_library_id,
+            property_id: property_id,
+            cache: snapshot_cache
+          )
         )
       end
 
@@ -644,22 +673,23 @@ module ReactorSDK
       # @param response [Hash] Full JSON:API response from the API
       # @return [ReactorSDK::Resources::LibraryWithResources]
       #
-      def build_library_with_resources(response)
-        data     = response.fetch('data')
-        included = Array(response['included'])
+      def build_library_with_resources(response, library_id: nil)
+        data     = fetch_hash_value(response, 'data')
+        included = Array(hash_value(response, 'included', []))
 
-        included_by_type = included.group_by { |r| r['type'] }
+        included_resources = if included.empty? && library_id
+                               fallback_included_resources(library_id)
+                             else
+                               resources_grouped_by_type(included)
+                             end
 
         Resources::LibraryWithResources.new(
-          id: data.fetch('id'),
-          type: data.fetch('type'),
-          attributes: data.fetch('attributes', {}),
-          meta: data.fetch('meta', {}),
-          included_resources: {
-            'rules' => included_by_type.fetch('rules', []),
-            'data_elements' => included_by_type.fetch('data_elements', []),
-            'extensions' => included_by_type.fetch('extensions', [])
-          }
+          id: fetch_hash_value(data, 'id'),
+          type: fetch_hash_value(data, 'type'),
+          attributes: hash_value(data, 'attributes', {}),
+          meta: hash_value(data, 'meta', {}),
+          relationships: hash_value(data, 'relationships', {}),
+          included_resources: included_resources
         )
       end
 
@@ -692,6 +722,47 @@ module ReactorSDK
         UPSTREAM_STAGE_ORDER[(current_index + 1)..]
       end
 
+      def fetch_hash_value(hash, key)
+        return hash.fetch(key) if hash.key?(key)
+
+        alternate_key = key.is_a?(String) ? key.to_sym : key.to_s
+        return hash.fetch(alternate_key) if hash.key?(alternate_key)
+
+        raise KeyError, "key not found: #{key.inspect}"
+      end
+
+      def hash_value(hash, key, default = nil)
+        return default unless hash.respond_to?(:key?)
+        return hash[key] if hash.key?(key)
+
+        alternate_key = key.is_a?(String) ? key.to_sym : key.to_s
+        return hash[alternate_key] if hash.key?(alternate_key)
+
+        default
+      end
+
+      def fallback_included_resources(library_id)
+        {
+          'rules' => serialize_resources(rules(library_id)),
+          'data_elements' => serialize_resources(data_elements(library_id)),
+          'extensions' => serialize_resources(extensions(library_id))
+        }
+      end
+
+      def serialize_resources(resources)
+        Array(resources).map(&:to_h)
+      end
+
+      def resources_grouped_by_type(resources)
+        included_by_type = resources.group_by { |resource| hash_value(resource, 'type')&.to_s }
+
+        {
+          'rules' => included_by_type.fetch('rules', []),
+          'data_elements' => included_by_type.fetch('data_elements', []),
+          'extensions' => included_by_type.fetch('extensions', [])
+        }
+      end
+
       ##
       # Builds one upstream-chain entry for a specific library and resource ID.
       #
@@ -715,7 +786,7 @@ module ReactorSDK
       end
 
       def build_comprehensive_upstream_chain_entry(library, resource_id, property_id:, resource_type:, snapshot_cache:)
-        snapshot = fetch_snapshot(library.id, property_id: property_id, cache: snapshot_cache)
+        snapshot = fetch_effective_snapshot(library.id, property_id: property_id, cache: snapshot_cache)
         resource = snapshot.find_resource(resource_id)
         revision_id = snapshot.resource_revision_id(resource_id)
         revision = revision_id ? revisions_endpoint.find(revision_id) : nil
@@ -738,7 +809,7 @@ module ReactorSDK
         snapshot_cache,
         resource_type
       )
-        snapshot = fetch_snapshot(library_id, property_id: property_id, cache: snapshot_cache)
+        snapshot = fetch_effective_snapshot(library_id, property_id: property_id, cache: snapshot_cache)
         build_comprehensive_target_context(resource_or_id, resource_id, snapshot, resource_type)
       end
 
@@ -785,9 +856,75 @@ module ReactorSDK
         end
       end
 
-      def fetch_snapshot(library_id, property_id:, cache:)
-        cache.fetch(snapshot_cache_key(library_id, property_id)) do
-          cache[snapshot_cache_key(library_id, property_id)] = find_snapshot(library_id, property_id: property_id)
+      def fetch_effective_snapshot(library_id, property_id:, cache:)
+        cache.fetch(effective_snapshot_cache_key(library_id, property_id)) do
+          cache[effective_snapshot_cache_key(library_id, property_id)] = build_effective_snapshot(
+            library_id,
+            property_id: property_id,
+            cache: cache
+          )
+        end
+      end
+
+      def build_effective_snapshot(library_id, property_id:, cache:)
+        direct_snapshot = fetch_direct_snapshot(library_id, property_id: property_id, cache: cache)
+        inherited_library = upstream_libraries(library_id, property_id: property_id).first
+        return direct_snapshot if inherited_library.nil?
+
+        merge_snapshots(
+          direct_snapshot,
+          fetch_effective_snapshot(inherited_library.id, property_id: property_id, cache: cache)
+        )
+      end
+
+      def merge_snapshots(direct_snapshot, inherited_snapshot)
+        Resources::LibrarySnapshot.new(
+          property_id: direct_snapshot.property_id,
+          library: build_merged_library(direct_snapshot, inherited_snapshot),
+          rule_components_by_rule_id: merge_rule_component_index(direct_snapshot, inherited_snapshot)
+        )
+      end
+
+      def build_merged_library(direct_snapshot, inherited_snapshot)
+        library = direct_snapshot.library
+
+        Resources::LibraryWithResources.new(
+          id: library.id,
+          type: library.type,
+          attributes: library.attributes,
+          meta: library.meta,
+          relationships: library.relationships,
+          included_resources: {
+            'rules' => serialize_resources(merge_resource_lists(direct_snapshot.rules, inherited_snapshot.rules)),
+            'data_elements' => serialize_resources(
+              merge_resource_lists(direct_snapshot.data_elements, inherited_snapshot.data_elements)
+            ),
+            'extensions' => serialize_resources(
+              merge_resource_lists(direct_snapshot.extensions, inherited_snapshot.extensions)
+            )
+          }
+        )
+      end
+
+      def merge_resource_lists(direct_resources, inherited_resources)
+        direct_resources = Array(direct_resources)
+        direct_resource_ids = direct_resources.each_with_object({}) do |resource, ids|
+          ids[resource.id] = true
+        end
+
+        direct_resources + Array(inherited_resources).reject { |resource| direct_resource_ids.key?(resource.id) }
+      end
+
+      def merge_rule_component_index(direct_snapshot, inherited_snapshot)
+        inherited_snapshot.rule_components_by_rule_id.merge(direct_snapshot.rule_components_by_rule_id)
+      end
+
+      def fetch_direct_snapshot(library_id, property_id:, cache:)
+        cache.fetch(direct_snapshot_cache_key(library_id, property_id)) do
+          cache[direct_snapshot_cache_key(library_id, property_id)] = find_direct_snapshot(
+            library_id,
+            property_id: property_id
+          )
         end
       end
 
@@ -836,8 +973,8 @@ module ReactorSDK
         )
       end
 
-      def snapshot_builder
-        @snapshot_builder ||= ReactorSDK::LibrarySnapshotBuilder.new(
+      def direct_snapshot_builder
+        @direct_snapshot_builder ||= ReactorSDK::LibrarySnapshotBuilder.new(
           library_loader: method(:find_with_resources),
           revisions_endpoint: revisions_endpoint,
           rule_components_endpoint: rule_components_endpoint
@@ -850,8 +987,12 @@ module ReactorSDK
         )
       end
 
-      def snapshot_cache_key(library_id, property_id)
-        "#{property_id}:#{library_id}"
+      def direct_snapshot_cache_key(library_id, property_id)
+        "direct:#{property_id}:#{library_id}"
+      end
+
+      def effective_snapshot_cache_key(library_id, property_id)
+        "effective:#{property_id}:#{library_id}"
       end
 
       ##

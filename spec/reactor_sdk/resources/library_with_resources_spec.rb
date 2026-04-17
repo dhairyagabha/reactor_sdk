@@ -89,6 +89,38 @@ RSpec.describe ReactorSDK::Resources::LibraryWithResources do
     end
   end
 
+  describe 'key normalization' do
+    it 'supports symbol-keyed attributes and included resources' do
+      library = described_class.new(
+        id: 'LB123',
+        type: 'libraries',
+        attributes: {
+          name: 'Release 1.0',
+          state: 'development'
+        },
+        included_resources: {
+          rules: [
+            {
+              id: 'RL123',
+              type: 'rules',
+              attributes: { name: 'Order Confirmation', enabled: true },
+              relationships: {
+                latest_revision: {
+                  data: { id: 'RE001', type: 'revisions' }
+                }
+              }
+            }
+          ]
+        }
+      )
+
+      expect(library.name).to eq('Release 1.0')
+      expect(library.rules.length).to eq(1)
+      expect(library.rules.first.name).to eq('Order Confirmation')
+      expect(library.rules.first.revision_id).to eq('RE001')
+    end
+  end
+
   # ── Rules ────────────────────────────────────────────────────
 
   describe '#rules' do

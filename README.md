@@ -27,7 +27,7 @@
 
 ## Features
 
-- OAuth Server-to-Server authentication with automatic token refresh
+- OAuth Server-to-Server authentication with configurable automatic token refresh
 - Typed resource objects across companies, properties, rules, data elements, extensions, libraries, builds, revisions, notes, and more
 - Automatic pagination for list endpoints
 - Consistent error classes and retry behavior around Adobe API failures
@@ -84,6 +84,8 @@ client = ReactorSDK::Client.new(
 )
 ```
 
+`auto_refresh_token` defaults to `true`. When you set it to `false`, ReactorSDK still fetches the initial Adobe IMS token, but once that cached token expires the SDK raises `ReactorSDK::AuthenticationError` instead of silently refreshing it.
+
 ## Quick Start
 
 ```ruby
@@ -124,6 +126,15 @@ snapshot.rule_components_for_rule("RL123").map(&:id)
 
 # Snapshot-scoped impact analysis for a data element.
 snapshot.impacted_rules_for("DE123").map(&:name)
+```
+
+`find_snapshot` returns the effective Launch snapshot for that library, including inherited upstream resources that are still active for review and build decisions. If you need only the records directly attached to one library, call `find_direct_snapshot` instead:
+
+```ruby
+direct_snapshot = client.libraries.find_direct_snapshot(
+  "LB_DEV",
+  property_id: "PR123"
+)
 ```
 
 ### Build Comprehensive Review Objects
@@ -208,8 +219,8 @@ Sample comparison output:
 # current revision  = RE_ADDED
 # baseline revision = nil
 #
-# data_elements DE200 removed
-# current revision  = nil
+# data_elements DE200 unchanged
+# current revision  = RE_REMOVED
 # baseline revision = RE_REMOVED
 #
 # extensions EX100 unchanged
@@ -217,7 +228,13 @@ Sample comparison output:
 # baseline revision = RE_EX
 ```
 
-Comparison is performed across the library's top-level rules, data elements, and extensions. Rule components are still included in the comprehensive rule payload so rule diffs remain readable.
+Comparison is performed across effective library snapshots, so unchanged resources inherited from Staging or Production are preserved as `unchanged` rather than being misreported as removed. Rule components are still included in the comprehensive rule payload so rule diffs remain readable.
+
+## Migration Notes for 1.0.0
+
+- `find_snapshot` now returns the effective inherited Launch state for a library. If your application relied on the old direct-only behavior, switch that code to `find_direct_snapshot`.
+- `compare` now evaluates effective inherited snapshots, so unchanged upstream resources may move from `removed` to `unchanged` in review output.
+- `auto_refresh_token: false` is now enforced. If your app sets it to `false`, be ready to recreate clients or handle `ReactorSDK::AuthenticationError` after token expiry.
 
 ## Endpoint Coverage
 

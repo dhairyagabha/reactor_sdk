@@ -12,9 +12,9 @@ module ReactorSDK
       @snapshot_loader = snapshot_loader
     end
 
-    def build(current_library_id, baseline_library_id:, property_id:)
-      current_snapshot = @snapshot_loader.call(current_library_id, property_id: property_id)
-      baseline_snapshot = @snapshot_loader.call(baseline_library_id, property_id: property_id)
+    def build(current_library_id, baseline_library_id:, property_id:, current_snapshot: nil, baseline_snapshot: nil)
+      current_snapshot ||= @snapshot_loader.call(current_library_id, property_id: property_id)
+      baseline_snapshot ||= @snapshot_loader.call(baseline_library_id, property_id: property_id)
 
       Resources::LibraryComparison.new(
         current_library_id: current_library_id,
